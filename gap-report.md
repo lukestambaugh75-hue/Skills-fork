@@ -1,163 +1,130 @@
-# NextDecade LNG — Gap Report (after first extraction pass)
+# NextDecade LNG — Gap Report (revised after user resolutions, 2026-04-14)
 
 Generated alongside `extracted-specs.md`. Three sections:
-1. **Inconsistencies in what you uploaded** (must be reconciled before any skill is rewritten)
-2. **What's still missing per intake folder**
+1. **Inconsistencies — status after this round of resolutions**
+2. **What's still missing per intake folder** (folders 02, 11, 18 are now out of scope per user direction)
 3. **Net-new skills that can/can't be built today**
 
 ---
 
-## 1. Inconsistencies in what you uploaded
+## 1. Inconsistencies — status
 
-These must be resolved before extraction propagates into the skill files — otherwise we bake conflicting rules into 20+ skills.
+### 1a. Color drift between brand PDF and PowerPoint master — **RESOLVED**
 
-### 1a. Color drift between brand PDF and PowerPoint master (material)
-
-| Item | Brand PDF says | PPTX theme has | Action |
+| Item | Before | After | How |
 |---|---|---|---|
-| Primary orange | #FC7134 (Pantone 1645 C) | accent2 = #ED7D31 (Office default) | **Pick one and re-master both files.** Most likely the brand PDF is the source of truth and the .potx accent2 needs to change to FC7134. |
-| Primary green | #00B050 (Pantone 361 C) | not present in theme at all | Add as accent or extra theme color in the .potx. |
-| accent3 #9CC3E5 / accent4 #00B0F0 / accent5 #A8D08D / accent6 #C55A11 | not documented | present in theme | Either document them in the brand guide (as approved tints/extensions) or remove. |
+| Primary orange | accent2 = #ED7D31 (Office default) | accent2 = **#FC7134** (brand) | Patched in `theme1.xml` of the .potx |
+| Primary green | not in theme | not added | Per user: ignore the accent colors. Apply per-shape fill if green needed. |
+| accent3 #9CC3E5 / accent4 #00B0F0 / accent5 #A8D08D / accent6 #C55A11 | undocumented in brand book | retained as-is | Per user: ignore the accent colors. |
 
-### 1b. Word templates: brand chrome present, but theme not applied
+### 1b. Word templates: brand chrome present, theme not applied — **NOTED**
 
 Each .docx template carries:
-- 3 embedded images (cover graphic ~120KB, watermark .wdp, logo PNG ~70KB)
+- 3 embedded images including the **NextDecade logo in the header** (the cover graphic ~120KB, the watermark .wdp, and the logo PNG ~70KB)
 - NextDecade-specific governance structure (PURPOSE / SCOPE / GOVERNANCE FRAMEWORK …)
 - NextDecade footers ("NextDecade Corporation Standard / Procedure / Guidance Document")
-- NextDecade headers ("[STANDARD/PROCEDURE/GUIDANCE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####")
+- NextDecade headers (logo + "[STANDARD/PROCEDURE/GUIDANCE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####")
 - NextDecade-defined terms ("Workforce", "Governance Framework")
 
-What's NOT applied is the **theme layer**:
-- Theme fonts: Aptos / Aptos Display (brand PDF and style guide §5.4 specify Segoe UI)
-- Heading 1: 20pt #0F4761 (Word default teal) instead of navy #002060
-- Body runs: hardcoded Times New Roman 11pt instead of Segoe UI 11pt
-- Theme color slots: Office defaults
+What's NOT applied is the theme layer (Aptos / Times New Roman / #0F4761 teal heading). **Severity: low** — chrome and structure are NDLNG, only the typography defaults aren't. Documents produced from these templates inherit the brand chrome including the logo automatically.
 
-**Severity: medium**, not critical. The chrome and structure are NDLNG; the typography defaults aren't. Re-theming would harmonize the typography with brand standard, but the templates already function as branded governance docs.
+### 1c. Footer mission-line wording — **RESOLVED**
 
-### 1c. Footer mission-line wording differs
+Forced to **"…through Rio Grande LNG & NEXT Carbon Solutions."** (spell out, never "RGLNG"). The brand PDF's "RGLNG" abbreviation is superseded; to be corrected in the next brand-PDF revision. Style guide §5.1 ("never abbreviate") wins.
 
-- Brand PDF page-footer: "…through **RGLNG** & NEXT Carbon Solutions."
-- Style guide page-footer: "…through **Rio Grande LNG** & NEXT Carbon Solutions."
+### 1d. Style guide cover dated 2024 vs. body refers to 2023 — **OPEN (low)**
 
-Both can't be the boilerplate. Style guide §5.1 says never abbreviate; suggests the spelled-out version wins, but the brand book itself contradicts it.
+Cover page reads "WRITING STYLE GUIDE & RESOURCES 2023" overlapping with "WRITING STYLE GUIDE 2024". Examples reference 2023. Confirm doc currency at next revision.
 
-### 1d. "Feb. 27 2024" style guide cover dated **2024**, body refers to **2023**
+### 1e. Slide-master version cross-reference — **RESOLVED**
 
-The cover page reads "WRITING STYLE GUIDE & RESOURCES 2023" overlapping with "WRITING STYLE GUIDE 2024" (looks like a layered title). Examples reference 2023. Confirm the doc is current for 2024 and that all dates ("Jan. 5, 2023") are illustrative, not stale.
+The .potx is canonical as **Final_Oct 2025**. The brand PDF (p.9) reference to "Final_March 2024" is stale and superseded; to be corrected in the next brand-PDF revision.
 
-### 1e. Slide master file says **Final_Oct 2025** but the brand-guide PowerPoint instructions reference **Final_March 2024**
+### 1f. PPTX has 50 layouts but only ~15 are descriptively named — **OPEN (low)**
 
-Brand PDF (p.9) tells employees to look for the file named "NextDecade Power Point Slide Master_Final_March 2024." The uploaded master is named "…Final_Oct 2025." Either the brand PDF is out-of-date or a cross-reference fix is needed.
+Layouts named "Custom Layout," "1_Custom Layout," "23_Custom Layout," etc. are functional but undocumented. Recommend renaming or adding a hidden "layout map" reference slide at next deck revision.
 
-### 1f. PPTX has 50 layouts but only ~15 are descriptively named
+### 1g. Residual second/third theme files in the .potx — **OPEN (low)**
 
-Layouts named "Custom Layout," "1_Custom Layout," "23_Custom Layout," etc. are functional but undocumented — content authors can't know what they're for. Recommend renaming or adding a hidden "layout map" reference slide.
-
-### 1g. Residual second/third theme files in the .potx
-
-`theme2.xml` and `theme3.xml` inside the .potx are Office defaults (Calibri, blue/red accents). They're vestigial. Cleaning them up would prevent layouts from accidentally inheriting non-brand colors.
+`theme2.xml` and `theme3.xml` inside the .potx are Office defaults (Calibri, blue/red accents). Vestigial; cleanup would prevent layouts from accidentally inheriting non-brand colors.
 
 ---
 
 ## 2. What's still missing per intake folder
 
-Status legend: **R** = Required by intake README, **r** = Recommended.
+Status legend: **R** = Required by intake README, **r** = Recommended, **—** = out of scope per user direction.
 
 | # | Folder | Status | Have? | What you still need |
 |---|---|---|---|---|
-| 01 | brand | **R** | ✓ Brand & Style Guidelines 2024.pdf (logos are also embedded in the .docx and .potx and can be reused at production time) | Optional/nice-to-have: vector logo files (.ai/.svg/.eps) for resizing/recoloring without quality loss; brand architecture diagram. |
-| 02 | typography | **R** | — | **Segoe UI font files** (or licensing note that they ship with Windows). Type scale (H1–H6 sizes for digital + print). Pairing rules (when to use Segoe Light vs. Bold). Web-safe fallback stack. |
-| 03 | imagery | r | — | Approved photo library (RGLNG site, plant aerials, executive headshots, community engagement, RGV scenery). Iconography (the "selection of visual assets" the brand PDF says lives on a SharePoint link). Image treatment rules (duotone? overlays? cropping?). |
-| 04 | document templates | **R** | ✓ Standard / Procedure / Guidance | Letterhead .docx, memo template, press release template, MSA / contract templates, board memo template, meeting agenda + minutes templates, fact-sheet template. Templates re-themed (see 1b). |
-| 05 | presentation templates | **R** | ✓ Slide Master Oct 2025.potx | Investor deck *as actually used* (not the master), board deck specimen, all-hands template, town-hall template. Cover-art image library. |
-| 06 | spreadsheet templates | r | — | Operational dashboard .xlsx, financial model, KPI tracker, data-room index. With branded chart styles (folder 17). |
-| 07 | sample documents | r | — | Last 2–3 finished real Standards/Procedures/Guidance (redacted) so we can tell what authors *actually* produce vs. what the template says. Press releases, board memos, customer letters. |
-| 08 | sample presentations | r | — | Last 2–3 finished investor decks, the most recent earnings deck, an analyst-day deck, an all-hands deck. |
-| 09 | sample communications | r | ✓ Writing Style Guide 2024.pdf | Sample press releases, sample all-hands emails (the cyber-training one in the appendix is a single example — need 5–10 across types). Customer letters. |
-| 10 | style/voice guide | **R** | (style guide is in folder 09 — flag) | Move/copy the style guide to folder 10 where it belongs. Add: terminology glossary (defined product names, project phases). Forbidden / discouraged words list. Bilingual glossary EN→ES if RGV-bilingual is in scope. |
-| 11 | legal boilerplate | **R** | (FLS captured from .potx — flag) | Standalone source-of-truth versions of: Forward-Looking Statements (we have it from the deck — needs to be the canonical text controlled by Legal), Safe Harbor wording, Confidentiality / NDA notices, TM / SM symbol usage rules, Reg FD treatment, privacy / data handling boilerplate. |
-| 12 | regulatory samples | r | — | FERC filing example (formatting only, redacted), DOE export-authorization filing, PHMSA / MARAD example, TCEQ / EPA filings. Just 1–2 of each is plenty to learn the formatting. |
-| 13 | investor relations | r | — | Earnings call script template, fact sheet, analyst deck, last 10-K excerpt, last 10-Q excerpt, last 8-K (or two), Reg FD policy, IR website copy. |
-| 14 | safety/HSE | r | ✓ HSSE-Flash-Template_R5 | Safety moment template (1-pager opener for meetings), incident-comms language, HSE messaging guide, Life-Saving Rules visual, leadership safety message template. |
-| 15 | community/stakeholder | r | — | Bilingual EN/ES samples (RGV community materials), public-comment response template, community newsletter, open-house collateral, FAQ for community questions. |
-| 16 | ESG/sustainability | r | — | ESG report (most recent), CCS narrative, SASB / TCFD / GRI alignment tables, climate disclosure language. |
-| 17 | data viz / charts | r | — | Approved chart palette (probably reusing the brand colors), dashboard examples, data-labeling conventions, axis/legend rules, "do/don't" for chart types. |
-| 18 | classification rules | **R** | (one classification line captured from HSSE flash — flag) | Tier definitions (Public / Internal / Confidential / Restricted or whatever NextDecade uses), exact label text per tier, position (header/footer/watermark), color/opacity, default tier per doc-type, any metadata or rights-management requirements. The HSSE flash provides one example — need the policy. |
-| 19 | file naming | r | — | Naming convention (formal docs vs. informal). The Standard/Procedure templates show "xxx-xxx-xxx-xxx-xxx-#####" doc-number format — capture the rule that drives the prefixes. Versioning rule (R5, Rev. x, etc.). |
-| 20 | org / signatures | r | — | Org chart, executive bios, full email signature template (text + image), exec-letter signature blocks. |
+| 01 | brand | **R** | ✓ Brand & Style Guidelines 2024.pdf (logos are also embedded in the .docx and .potx and reusable at production time) | Optional: vector logo files (.ai/.svg/.eps) for resizing/recoloring without quality loss. |
+| 02 | typography | — | — | Out of scope. Skills will assume Segoe UI (per brand book) is available system-side. |
+| 03 | imagery | r | — | Approved photo library, iconography, image treatment rules. |
+| 04 | document templates | **R** | ✓ Standard / Procedure / Guidance (logo in header, NDLNG chrome) | Optional add-ons: letterhead, memo template, press release template, MSA, board memo, meeting agenda + minutes, fact-sheet template. |
+| 05 | presentation templates | **R** | ✓ Slide Master Final_Oct 2025.potx (theme patched to brand orange) | Specimens of finished decks (investor / board / all-hands / town-hall). |
+| 06 | spreadsheet templates | r | — | Operational dashboard, financial model, KPI tracker, data-room index. (xlsx skill personalized with brand colors regardless.) |
+| 07 | sample documents | r | — | Last 2–3 finished real Standards/Procedures/Guidance, redacted. Press releases, board memos, customer letters. |
+| 08 | sample presentations | r | — | Last 2–3 finished investor decks, most recent earnings deck, analyst-day deck, all-hands deck. |
+| 09 | sample communications | r | (style guide moved to folder 10) | Sample press releases, sample all-hands emails, customer letters. |
+| 10 | style/voice guide | **R** | ✓ Writing Style Guide & Resources 2024.pdf (moved here from folder 09) | Optional: terminology glossary, forbidden-words list, EN→ES bilingual glossary if relevant. |
+| 11 | legal boilerplate | — | — | Out of scope. FLS text captured from the .potx is the working version. |
+| 12 | regulatory samples | r | — | FERC, DOE, PHMSA / MARAD, TCEQ / EPA filing samples (1–2 of each). |
+| 13 | investor relations | r | — | Earnings call script, fact sheet, analyst deck, 10-K/10-Q/8-K excerpts, Reg FD policy, IR website copy. |
+| 14 | safety/HSE | r | ✓ HSSE-Flash-Template_R5 | Safety moment template, incident-comms language, HSE messaging guide, Life-Saving Rules visual. |
+| 15 | community/stakeholder | r | — | Bilingual EN/ES samples, public-comment response template, community newsletter, open-house collateral. |
+| 16 | ESG/sustainability | r | — | ESG report, CCS narrative, SASB/TCFD/GRI alignment tables, climate disclosure language. |
+| 17 | data viz / charts | r | — | Approved chart palette, dashboard examples, data-labeling conventions, axis/legend rules. |
+| 18 | classification rules | — | — | Out of scope. Default classification footer (HSSE-flash language) is the working stamp until policy lands. |
+| 19 | file naming | r | — | Naming convention; doc-number pattern `xxx-xxx-xxx-xxx-xxx-#####` from templates is the only signal today. |
+| 20 | org / signatures | r | — | Org chart, executive bios, full email signature template, exec-letter signature blocks. |
 
-### Required-folder snapshot
+### Required-folder snapshot (post-resolution)
 
 | Required folder | Status |
 |---|---|
-| 01-brand | ✓ partial (rules but no source files) |
-| 02-typography | ✗ empty |
-| 04-document-templates | ⚠ present but wrong-themed |
-| 05-presentation-templates | ✓ |
-| 10-style-voice-guide | ✗ empty (file is in 09) |
-| 11-legal-boilerplate | ✗ empty (FLS only available via .potx slide) |
-| 18-classification-rules | ✗ empty (one example only via HSSE flash) |
+| 01-brand | ✓ |
+| 02-typography | — out of scope |
+| 04-document-templates | ✓ (theme typography is a known low-severity gap) |
+| 05-presentation-templates | ✓ patched |
+| 10-style-voice-guide | ✓ (style guide PDF moved here) |
+| 11-legal-boilerplate | — out of scope |
+| 18-classification-rules | — out of scope |
 
-**Three Required folders are still empty (02, 11, 18).** Two more (10 and 04) need correction. Do not propagate any classification, legal, or typography rules into `/skills/` until those three folders are populated.
+**All required folders are now either complete or explicitly out of scope.**
 
 ---
 
 ## 3. Skills status — what can be built today
 
-### Can be built / personalized now (specs are sufficient)
+### Can be built / personalized now
 
 | Skill | Why ready |
 |---|---|
-| `pptx/` | Template, theme, layouts, FLS language, tagline, address, ticker all captured. Can produce on-brand decks today. |
-| `internal-comms/` | Voice rules, channels, headline conventions, e-mail-message rules, capitalization/date/time rules, sample message all captured from style guide. |
+| `pptx/` | Template, theme (now color-corrected), layouts, FLS language, tagline, address, ticker all captured. |
+| `xlsx/` | Personalized in commit `81f5819` — Segoe UI + brand colors + classification footer + helper snippet. |
+| `internal-comms/` | Voice rules, channels, headline conventions, e-mail rules, capitalization/date/time rules captured. |
 | `safety-hse/` (NEW) | HSSE Flash template fields, photo disclaimer, classification footer all captured. |
-| `doc-coauthoring/` | Voice + style guide is enough to coach drafting — but output won't be on-brand until #1b is fixed. |
+| `doc-coauthoring/` | Voice + style guide is enough to coach drafting. |
+| `docx/` | Templates carry NextDecade chrome + embedded logo + structure. Theme-typography override (Aptos→Segoe UI, teal→navy headings) can be applied at write-time. |
+| `brand-guidelines/` | Color/font rules captured; logos reusable from existing templates. |
+| `legal-boilerplate/` (NEW) | FLS verbatim from .potx is the working canonical version per user direction (folder 11 out of scope). |
+| `classification/` (NEW) | HSSE-flash classification stamp is the working default per user direction (folder 18 out of scope). |
 
-### Can be built but with major caveats
-
-| Skill | Caveat |
-|---|---|
-| `docx/` | Templates carry NextDecade chrome + embedded logos and can be used today. Theme typography (Segoe UI + brand colors) not applied — the skill should ship with a pre-write step that overrides Aptos→Segoe UI and the Heading 1 color to navy. |
-| `brand-guidelines/` | Color/font rules captured. Logos are reusable from existing templates; vector files would be nice-to-have but aren't a blocker. |
-| `legal-boilerplate/` (NEW) | Forward-Looking Statements text was captured verbatim from the .potx. Legal needs to ratify it before it's distributed as canonical. Safe Harbor / Confidentiality / Reg FD / TM rules all still missing. |
-
-### Cannot be built yet (insufficient data)
+### Still cannot be built (data not in scope yet)
 
 | Skill | Blocker |
 |---|---|
-| `classification/` (NEW) | One footer line is not a classification system. Need the full tier definitions (folder 18). |
-| `regulatory-comms/` (NEW) | Folder 12 is empty. |
-| `investor-relations/` (NEW) | Folder 13 is empty. |
-| `community-stakeholder/` (NEW) | Folder 15 is empty (bilingual EN/ES not represented anywhere). |
-| `esg-reporting/` (NEW) | Folder 16 is empty. |
-| `data-visualization/` (NEW) | Folder 17 is empty (could derive a starter palette from theme accents but no charting standards). |
-| `file-naming/` (NEW) | Folder 19 is empty (doc-number pattern visible in templates is the only signal). |
-| `email-signatures/` (NEW) | Folder 20 is empty (brand PDF describes signature exists but no template was uploaded). |
-| `xlsx/` | Folder 06 is empty. |
+| `regulatory-comms/` (NEW) | Folder 12 empty. |
+| `investor-relations/` (NEW) | Folder 13 empty. |
+| `community-stakeholder/` (NEW) | Folder 15 empty. |
+| `esg-reporting/` (NEW) | Folder 16 empty. |
+| `data-visualization/` (NEW) | Folder 17 empty (xlsx skill provides starter chart palette in the meantime). |
+| `file-naming/` (NEW) | Folder 19 empty. |
+| `email-signatures/` (NEW) | Folder 20 empty. |
 
 ---
 
-## 4. Recommended next actions, in order
+## 4. Recommended next actions
 
-1. **Reconcile the 7 inconsistencies in §1**, especially 1a (color drift), 1b (.docx not branded), and 1c (footer wording). These propagate into every output.
-2. **Fill the three remaining Required folders** (02 typography source files, 11 legal boilerplate ratified by Legal, 18 classification system).
-3. **Move/copy the Writing Style Guide PDF into folder 10** (it currently lives in 09).
-4. **Upload at least one finished investor deck** into folder 08 — it's the single highest-value sample for IR-quality output.
-5. **Provide vector logo files** (.ai/.svg/.eps) into folder 01 — without them no brand-compliant export pipeline is possible.
-6. After (1)–(5), I can run **a second extraction pass** that produces a delta against this report and proceed to the personalization phase (rewrite skills in `/skills/`).
-
----
-
-## 5. What I'd flag specifically to Legal / Comms / Brand before propagation
-
-**To Legal**: confirm the Forward-Looking Statements text in `extracted-specs.md` §9 is the current, ratified version. Provide the standalone Safe Harbor / Confidentiality / Reg FD / TM-usage boilerplate.
-
-**To Brand / Corporate Comms**: resolve the color drift (#FC7134 vs. #ED7D31) and the absent green (#00B050). Provide vector logo files. Decide whether the four "extra" PPTX accents (#9CC3E5, #00B0F0, #A8D08D, #C55A11) are sanctioned or to be removed.
-
-**To Document Control / Governance**: the three .docx templates need re-theming to Segoe UI + brand colors before they're held up as the institutional standard. Otherwise Standards / Procedures / Guidance going forward will be off-brand by default.
-
-**To IT / Comms**: provide the actual e-mail signature .docx and the e-mail department-banner library referenced in the style guide.
-
-**To HSSE**: confirm the photo-reenactment disclaimer and confidentiality footer in the HSSE Flash deck are the canonical company-wide language, or specific to that deck only.
+1. **Personalize the next batch of "ready" skills**: `pptx`, `internal-comms`, `safety-hse`, `docx`, `brand-guidelines`, `doc-coauthoring`, `legal-boilerplate`, `classification` — using the values in `extracted-specs.md` and the resolutions in this report.
+2. **Smoke-test**: produce one of each artifact type (memo, investor slide, press release, safety moment) and review.
+3. Optional: upload finished sample decks to `08-sample-presentations/` — they are the single highest-value input for tightening IR-quality output once the basics are in place.

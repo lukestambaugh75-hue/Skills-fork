@@ -14,10 +14,9 @@ Source: `uploads/` (5 artifacts across 5 of 20 categories). Generated from a fir
 | HQ address | 1000 Louisiana Street, Suite 3900, Houston, Texas 77002 USA | PPTX disclaimer slide |
 | Website | www.next-decade.com | PPTX back cover |
 | Tagline | **"Delivering Energy for What's NEXT"** | PPTX cover + back cover |
-| Mission line (footer of every brand page) | "NextDecade Corporation (NextDecade) is committed to providing the world access to lower carbon intensive energy through RGLNG & NEXT Carbon Solutions." | brand PDF every page |
-| Style-guide variant of mission line | "...through Rio Grande LNG & NEXT Carbon Solutions." (spells RGLNG out) | style guide every page |
+| Mission line (footer; canonical) | "NextDecade Corporation (NextDecade) is committed to providing the world access to lower carbon intensive energy through **Rio Grande LNG** & NEXT Carbon Solutions." | ruling: spell out RGLNG (style guide §5.1 wins) |
 
-**Inconsistency #1**: Brand PDF footer abbreviates as "RGLNG"; style guide footer spells "Rio Grande LNG". Need a ruling.
+**Resolved**: footer mission line is forced to "Rio Grande LNG" (spelled out). The brand PDF's "RGLNG" abbreviation is superseded — to be corrected in the next brand-PDF revision.
 
 ## 2. Brand architecture
 
@@ -43,22 +42,22 @@ Naming preference (style guide §5.1): **never abbreviate the parent as "ND" or 
 
 Usage rule: Pantone preferred → CMYK for 4-color print → Hex for digital → RGB for Word/PowerPoint.
 
-### 3b. PPTX theme actually shipping (`theme1.xml`, scheme name "Custom 1")
+### 3b. PPTX theme (`theme1.xml`, scheme name "Custom 1") — patched
 
-| Slot | Hex | Should match | Match? |
+| Slot | Hex | Brand-spec match | Notes |
 |---|---|---|---|
-| dk1 / Text | #000000 | black | yes |
-| lt1 / Background | #FFFFFF | white | yes |
-| dk2 | #002060 | navy | **yes** |
-| accent1 | #002060 | navy | yes |
-| accent2 | **#ED7D31** | orange #FC7134 | **NO — drift** |
-| accent3 | #9CC3E5 | (not in brand spec) | extra |
-| accent4 | #00B0F0 | (not in brand spec) | extra |
-| accent5 | #A8D08D | (not in brand spec) | extra (closest to green) |
-| accent6 | #C55A11 | (not in brand spec) | extra dark-orange |
+| dk1 / Text | #000000 | yes | black |
+| lt1 / Background | #FFFFFF | yes | white |
+| dk2 | #002060 | yes | brand navy |
+| accent1 | #002060 | yes | brand navy |
+| accent2 | **#FC7134** | yes | **brand orange (patched 2026-04-14, was #ED7D31)** |
+| accent3 | #9CC3E5 | n/a | secondary tint, ignored per brand decision |
+| accent4 | #00B0F0 | n/a | secondary tint, ignored per brand decision |
+| accent5 | #A8D08D | n/a | secondary tint, ignored per brand decision |
+| accent6 | #C55A11 | n/a | secondary tint, ignored per brand decision |
 | hlink | #0563C1 | n/a | default Word blue |
 
-**Inconsistency #2 (material)**: brand-spec primary orange #FC7134 is **not** in the PowerPoint theme — accent2 ships as #ED7D31 (Office default orange). Brand green #00B050 is **absent** entirely. The Office-default light blue / light green / dark orange are present but not documented in the brand guide.
+**Resolved**: brand orange forced into accent2. Secondary accent3–6 colors are not in the brand book but are retained as-is per brand decision (do not modify, do not promote, do not flag). Brand green #00B050 is not in the theme; if needed in a deck it should be applied as a per-shape fill.
 
 ### 3c. DOCX themes
 
@@ -155,11 +154,13 @@ External: next-decade.com, LinkedIn, Facebook, X (Twitter), conferences, recruit
 
 ### 8b. Three governance document types
 
+All three templates carry the **NextDecade logo** as an embedded PNG in the header (the "308444 41275" numbers I initially read as text were drawing-anchor coordinates for the logo image), plus a cover-page graphic and a watermark — all already inside the .docx, so any output produced from these templates inherits the brand chrome automatically.
+
 | Type | Purpose statement | Header | Footer |
 |---|---|---|---|
-| **Standard** | Mandatory levels of quality & expectations | "NextDecade Corporation \n [Name] Standard" | "NextDecade Corporation Standard Document … PAGE x" |
-| **Procedure** | Step-by-step instructions, mandatory compliance | "dd-mmm-yyyy [PROCEDURE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####" | "NextDecade Corporation Procedure Document … PAGE x" |
-| **Guidance** | Best-practice recommendations (advisory) | "dd-mmm-yyyy [GUIDANCE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####" | "NextDecade Corporation Guidance Document … PAGE x" |
+| **Standard** | Mandatory levels of quality & expectations | NextDecade logo + "NextDecade Corporation \n [Name] Standard" | "NextDecade Corporation Standard Document … PAGE x" |
+| **Procedure** | Step-by-step instructions, mandatory compliance | NextDecade logo + "dd-mmm-yyyy [PROCEDURE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####" | "NextDecade Corporation Procedure Document … PAGE x" |
+| **Guidance** | Best-practice recommendations (advisory) | NextDecade logo + "dd-mmm-yyyy [GUIDANCE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####" | "NextDecade Corporation Guidance Document … PAGE x" |
 
 ### 8c. Document section skeleton (canonical order)
 
