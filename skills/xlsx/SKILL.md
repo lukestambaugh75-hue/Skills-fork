@@ -6,10 +6,125 @@ license: Proprietary. LICENSE.txt has complete terms
 
 # Requirements for Outputs
 
-## All Excel files
+## NextDecade brand defaults (apply to every workbook unless the user explicitly overrides)
+
+### Font
+- **All cells**: Segoe UI, 11pt body / 11pt bold for column headers / 14pt bold for sheet titles
+- Fallback: Calibri 11pt only if Segoe UI is unavailable on the rendering machine
+
+### Color palette (use these exact values; do not substitute)
+
+| Role | Hex | RGB | Use |
+|---|---|---|---|
+| NextDecade Navy | `002060` | 0, 32, 96 | Primary header fill, totals row fill, chart series 1, sheet-title text |
+| NextDecade Orange | `FC7134` | 252, 113, 52 | Accent / call-out fill, chart series 2, KPI highlight |
+| NextDecade Green | `00B050` | 0, 176, 80 | Positive variance, "on track" status, chart series 3 |
+| White | `FFFFFF` | 255, 255, 255 | Text on navy/orange fills, default cell background |
+| Black | `000000` | 0, 0, 0 | Body text |
+| Light gray (alt-row) | `F2F2F2` | 242, 242, 242 | Banded-row alternate fill (use sparingly) |
+| Mid gray (rule lines) | `A5A5A5` | 165, 165, 165 | Borders, grid emphasis |
+
+**Rio Grande LNG (RGLNG) workbooks use the same palette** (the brand book authorizes RGLNG on white / navy / orange surfaces). When a workbook is RGLNG-branded, the only difference is the logo and sheet-title prefix ("Rio Grande LNG — …").
+
+**NEXT Carbon Solutions (NCS) workbooks** swap orange for green as the primary accent (NCS authorizes white / green surfaces only).
+
+### Required header / chrome on every workbook
+
+- **Sheet title** (row 1, merged A1:Fn): "{Brand} — {Workbook Name}", Segoe UI 14pt bold, white text on navy fill (`002060`), row height ≥24pt
+- **Column-header row** (row 2 or row 3 if a subtitle is used): Segoe UI 11pt bold, white text on navy fill (`002060`), centered, thin white border
+- **Totals / footer row**: Segoe UI 11pt bold, navy text (`002060`), top-and-bottom navy border (1pt)
+- **Frozen panes**: freeze top header rows + first identifier column on every data sheet
+- **Print setup**: A4 or Letter, fit to width = 1, repeat header rows on every page, footer center = "NextDecade Corporation — {Sheet Name} — Page &P of &N"
+
+### Classification footer (mandatory)
+
+Every NextDecade workbook carries a one-line classification footer in the page-footer-left slot. Default tier when not specified by the user is **Internal Use Only** with the following text (matches the language used on the HSSE Flash deck):
+
+> Confidential and Proprietary – This document is intended solely for internal use. Unauthorized disclosure, distribution, or reproduction is strictly prohibited.
+
+If the user specifies a different classification (Public / Confidential / Restricted), use that label in the footer instead. *(The full classification system is still being defined — folder 18 of the intake.)*
+
+### Reusable Python snippet (openpyxl)
+
+```python
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+# NextDecade brand
+NAVY   = "002060"
+ORANGE = "FC7134"
+GREEN  = "00B050"
+WHITE  = "FFFFFF"
+GRAY_LT = "F2F2F2"
+GRAY_MD = "A5A5A5"
+
+BRAND_FONT = "Segoe UI"
+
+title_font   = Font(name=BRAND_FONT, size=14, bold=True, color=WHITE)
+header_font  = Font(name=BRAND_FONT, size=11, bold=True, color=WHITE)
+body_font    = Font(name=BRAND_FONT, size=11, color="000000")
+total_font   = Font(name=BRAND_FONT, size=11, bold=True, color=NAVY)
+
+navy_fill   = PatternFill("solid", fgColor=NAVY)
+orange_fill = PatternFill("solid", fgColor=ORANGE)
+green_fill  = PatternFill("solid", fgColor=GREEN)
+alt_fill    = PatternFill("solid", fgColor=GRAY_LT)
+
+navy_border = Border(top=Side(style="thin", color=NAVY),
+                     bottom=Side(style="thin", color=NAVY))
+
+def stamp_brand(ws, title, brand="NextDecade", n_cols=6, classification=None):
+    """Apply NextDecade chrome to a worksheet.
+
+    Call BEFORE writing data. Reserves rows 1 (title) and 2 (column headers).
+    """
+    ws.row_dimensions[1].height = 24
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n_cols)
+    cell = ws.cell(row=1, column=1, value=f"{brand} — {title}")
+    cell.font = title_font
+    cell.fill = navy_fill
+    cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.freeze_panes = "B3"
+    # Page footer
+    classification = classification or (
+        "Confidential and Proprietary – This document is intended solely for "
+        "internal use. Unauthorized disclosure, distribution, or reproduction "
+        "is strictly prohibited."
+    )
+    ws.oddFooter.left.text  = classification
+    ws.oddFooter.left.size  = 8
+    ws.oddFooter.center.text = f"NextDecade Corporation — {ws.title} — Page &P of &N"
+    ws.oddFooter.center.size = 8
+    ws.print_options.horizontalCentered = True
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 0
+    ws.print_title_rows = "1:2"
+
+def write_header(ws, headers, row=2):
+    for i, h in enumerate(headers, start=1):
+        c = ws.cell(row=row, column=i, value=h)
+        c.font = header_font
+        c.fill = navy_fill
+        c.alignment = Alignment(horizontal="center", vertical="center")
+```
+
+### Chart styling
+
+When creating charts:
+- Series colors in this order: navy `002060` → orange `FC7134` → green `00B050` → mid-gray `A5A5A5` → light navy tint `9CC3E5`
+- Chart title: Segoe UI 12pt bold, navy `002060`
+- Axis labels: Segoe UI 9pt, black
+- Gridlines: light gray `F2F2F2`, only horizontal on column/bar charts
+- Data labels: Segoe UI 9pt; show only on highlighted series, not all
+- No 3-D effects, no shadows, no gradient fills
+
+---
+
+## All Excel files (generic conventions; the NextDecade defaults above take precedence)
 
 ### Professional Font
-- Use a consistent, professional font (e.g., Arial, Times New Roman) for all deliverables unless otherwise instructed by the user
+- Default to Segoe UI 11pt per NextDecade brand. Fall back to Arial only if the user overrides.
 
 ### Zero Formula Errors
 - Every Excel model MUST be delivered with ZERO formula errors (#REF!, #DIV/0!, #VALUE!, #N/A, #NAME?)

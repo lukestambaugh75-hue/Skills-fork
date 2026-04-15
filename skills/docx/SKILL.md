@@ -6,6 +6,51 @@ license: Proprietary. LICENSE.txt has complete terms
 
 # DOCX creation, editing, and analysis
 
+## NextDecade procedures: ALWAYS use the template-render pipeline
+
+When the user asks for a NextDecade Procedure (or Standard / Guidance, once those templates are tagged), do NOT generate a .docx from scratch. Use the production template-render pipeline:
+
+```bash
+python skills/docx/scripts/render_docx.py <input.json> <output.docx>
+```
+
+The pipeline:
+1. **Lints** the Jinja-tagged template (`skills/docx/templates/Procedure Template (Jinja).docx`) against `procedure_schema.json`. Catches: smart-quote contamination of markers, run-split markers (Word-edit damage), missing required markers, unknown markers, unbalanced braces.
+2. **Renders via docxtpl** with `StrictUndefined` (any missing data raises with a clear field name). Preserves the embedded NextDecade logo in the header, cover graphic, watermark, and all brand chrome byte-identically.
+3. **Falls back to walk-and-replace** on the original `Procedure Template.docx` if the Jinja template is corrupted. Output is brand-correct either way; the fallback is slower per generation but never fails on template damage.
+
+### Input shape
+
+See `skills/docx/templates/procedure_schema.json` for the full field-level schema. The shape is:
+
+```json
+{
+  "purpose_text": "...",
+  "scope_text": "...",
+  "governance_text": "...",
+  "exception_text": "...",
+  "continuous_text": "...",
+  "definitions":      [{"no": "1", "term": "...", "definition": "..."}, ...],
+  "references":       [{"title": "...", "number": "..."}, ...],
+  "content_sections": [{"title": "...", "intro": "...", "bullets": ["...", ...]}, ...],
+  "raci":             {"responsible": "...", "accountable": "...", "consulted": "...", "informed": "..."},
+  "approval":         {"issuer": "s/ ...", "adopted_by": "NextDecade Corporation", "effective_date": "dd-Mmm-yyyy"},
+  "revision_history": [{"number": "0", "description": "Issued for Use"}, ...]
+}
+```
+
+`content_sections` accepts any number of entries — each becomes one Heading 1 + intro + bulleted list, repeating the template's section block. Tables (definitions, references, revision history) are also variable-row.
+
+### When to fall back to from-scratch generation
+
+Only when the user explicitly asks for a NON-procedure document type that isn't yet templated (e.g., a one-off internal memo with custom layout). For any standard governance document — procedure, standard, guidance — the template path is mandatory; it's the only way to guarantee brand chrome + structure + classification footer + embedded logo come through identically.
+
+### If the linter reports template damage
+
+The render still succeeds via the walk-and-replace fallback. Tell the user the Jinja template needs a fix in Word: open the template, locate the broken marker (linter output names the part and paragraph index), retype the marker in one motion (don't paste — Word may inject smart quotes), save. Re-run the lint to confirm clean.
+
+---
+
 ## Overview
 
 A .docx file is a ZIP archive containing XML files.
