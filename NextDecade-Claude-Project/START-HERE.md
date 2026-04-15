@@ -8,7 +8,7 @@ This folder has everything you need to upload to a Claude Project so Claude can 
 
 1. **Download the ZIP and unzip locally** — Claude web uploads individual files, not folders or ZIPs.
 2. **Create a new Claude Project** at [claude.ai](https://claude.ai) → sidebar → **Projects** → **Create project**.
-3. **Upload all the files individually** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders (drag-select the contents of each folder into the project's Add content dialog — the web UI does not accept a folder or ZIP as a unit). In the Project's *Custom instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
+3. **Upload all the files individually** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders (drag-select the contents of each folder into the project's Add content dialog — the web UI does not accept a folder or ZIP as a unit). **When uploading `02-templates/`, skip the two `.pptx` and `.potx` files — Claude Projects rejects those formats. Upload the matching `.pdf` siblings instead (`HSSE Flash Template.pdf` and `NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf`) — those are pre-generated from the PowerPoint originals and carry the same brand layouts.** In the Project's *Custom instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
 
 That's it. Claude now knows how to draft on-brand NextDecade content.
 
