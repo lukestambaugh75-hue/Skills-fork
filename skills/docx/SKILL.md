@@ -11,13 +11,30 @@ license: Proprietary. LICENSE.txt has complete terms
 When the user asks for a NextDecade Procedure (or Standard / Guidance, once those templates are tagged), do NOT generate a .docx from scratch. Use the production template-render pipeline:
 
 ```bash
-python skills/docx/scripts/render_docx.py <input.json> <output.docx>
+python skills/docx/scripts/render_docx.py procedure <input.json> <output.docx> [--pdf]
 ```
 
 The pipeline:
 1. **Lints** the Jinja-tagged template (`skills/docx/templates/Procedure Template (Jinja).docx`) against `procedure_schema.json`. Catches: smart-quote contamination of markers, run-split markers (Word-edit damage), missing required markers, unknown markers, unbalanced braces.
 2. **Renders via docxtpl** with `StrictUndefined` (any missing data raises with a clear field name). Preserves the embedded NextDecade logo in the header, cover graphic, watermark, and all brand chrome byte-identically.
-3. **Falls back to walk-and-replace** on the original `Procedure Template.docx` if the Jinja template is corrupted. Output is brand-correct either way; the fallback is slower per generation but never fails on template damage.
+3. **Falls back to walk-and-replace** on the source `NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` if the Jinja template is corrupted. Output is brand-correct either way; the fallback is slower per generation but never fails on template damage.
+
+### Source template
+
+The Jinja template is built from `uploads/04-document-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` (Rev 1, Apr 9 2026 layout). Section structure:
+
+1. Cover page (procedure title, doc number)
+2. Revision History table + Change Log table
+3. Table of Contents
+4. 1.0 Purpose / 2.0 Scope / 3.0 Roles and Responsibilities (table)
+5. 4.0 Safety and Health Precautions / 4.1 PPE
+6. 5.0 *Procedure Title* (the actual procedure body + step table + notes/caution/warning callouts)
+7. 6.0 Record Keeping Requirements and Training
+8. 9.0 Definitions / 9.1 Terms (table) / 9.2 Abbreviations (table)
+9. 10.0 References (table)
+10. Appendices (variable count)
+
+The source template's "Sample Styles" section (8.0) is intentionally omitted from the Jinja template — it's template-author documentation, not procedure content.
 
 ### Input shape
 
@@ -25,21 +42,38 @@ See `skills/docx/templates/procedure_schema.json` for the full field-level schem
 
 ```json
 {
+  "procedure_title": "Hot Work Procedure",
+  "doc_number": "ORG-NTD-000010-SAF-PRC-00099",
+  "header_date": "4/15/2026",
+  "revision": "0",
+  "revision_history": [
+    {"rev": "0", "date": "04-15-26", "description": "Issued for Use",
+     "originator": "...", "reviewer": "...", "approver": "..."}
+  ],
+  "change_log": [{"revision": "0", "description": "Initial issue."}],
   "purpose_text": "...",
   "scope_text": "...",
-  "governance_text": "...",
-  "exception_text": "...",
-  "continuous_text": "...",
-  "definitions":      [{"no": "1", "term": "...", "definition": "..."}, ...],
-  "references":       [{"title": "...", "number": "..."}, ...],
-  "content_sections": [{"title": "...", "intro": "...", "bullets": ["...", ...]}, ...],
-  "raci":             {"responsible": "...", "accountable": "...", "consulted": "...", "informed": "..."},
-  "approval":         {"issuer": "s/ ...", "adopted_by": "NextDecade Corporation", "effective_date": "dd-Mmm-yyyy"},
-  "revision_history": [{"number": "0", "description": "Issued for Use"}, ...]
+  "roles_intro": "...",
+  "roles": [
+    {"role": "Operations Manager",
+     "responsibilities": ["bullet 1", "bullet 2", "bullet 3"]}
+  ],
+  "ppe_paragraphs": ["paragraph 1", "paragraph 2"],
+  "procedure_section_title": "Hot Work Procedure",
+  "procedure_intro": "...",
+  "steps_intro": "The Permit Receiver completes the following:",
+  "steps": [{"step": "1", "description": "..."}],
+  "recordkeeping_text": "...",
+  "terms_intro": "...",
+  "definitions":      [{"term": "Hot Work", "definition": "..."}],
+  "abbreviations_intro": "...",
+  "abbreviations":    [{"abbreviation": "PPE", "definition": "Personal Protective Equipment"}],
+  "references":       [{"number": "ORG-NTD-...", "title": "..."}],
+  "appendices":       [{"title": "Hot Work Permit Form", "body": "..."}]
 }
 ```
 
-`content_sections` accepts any number of entries — each becomes one Heading 1 + intro + bulleted list, repeating the template's section block. Tables (definitions, references, revision history) are also variable-row.
+All list-of-object fields are variable-length — the docxtpl row loops produce exactly N rows for N entries. The Notes/Caution/Warning callout block after the Steps table is static boilerplate.
 
 ### When to fall back to from-scratch generation
 
