@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0.0",
+  "template": "Procedure Template (Jinja).docx",
+  "description": "Input schema for NextDecade Procedure documents. Pass a dict matching this shape to render_docx.render_procedure().",
+  "required_markers": [
+    "purpose_text",
+    "scope_text",
+    "governance_text",
+    "exception_text",
+    "continuous_text",
+    "content_sections",
+    "definitions",
+    "references",
+    "raci",
+    "approval",
+    "revision_history"
+  ],
+  "optional_markers": [
+    "s",
+    "b",
+    "d",
+    "ref",
+    "rev"
+  ],
+  "fields": {
+    "purpose_text": {
+      "type": "string",
+      "description": "First-paragraph PURPOSE statement. Should reference the procedure name and the governing Standard. End with a sentence about mandatory compliance."
+    },
+    "scope_text": {
+      "type": "string",
+      "description": "SCOPE statement. Identify which facilities/sites and which Workforce members are covered. Use the canonical 'Workforce' definition."
+    },
+    "governance_text": {
+      "type": "string",
+      "description": "INTEGRATED GOVERNANCE FRAMEWORK statement. Reference related Standards / Procedures by name."
+    },
+    "exception_text": {
+      "type": "string",
+      "description": "EXCEPTION REQUEST AND COMPLIANCE AUDITS statement. Identify the approver and time-bound limits."
+    },
+    "continuous_text": {
+      "type": "string",
+      "description": "CONTINUOUS IMPROVEMENT AND REVIEW statement. Annual review cadence; lessons-learned incorporation."
+    },
+    "definitions": {
+      "type": "list[object]",
+      "min_items": 0,
+      "item_shape": {
+        "no": "string (e.g., '1', '2', '3')",
+        "term": "string — the defined term, smart-quoted if multi-word",
+        "definition": "string — the full definition"
+      }
+    },
+    "references": {
+      "type": "list[object]",
+      "min_items": 0,
+      "item_shape": {
+        "title": "string — full title of the referenced document",
+        "number": "string — NextDecade doc number (xxx-xxx-xxx) or 'External'"
+      }
+    },
+    "content_sections": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "The main body sections. Each section becomes one Heading 1 + intro paragraph + bulleted list. Add as many as needed; the template will render each in order.",
+      "item_shape": {
+        "title": "string — section heading, ALL CAPS",
+        "intro": "string — opening paragraph for the section",
+        "bullets": "list[string] — bulleted items"
+      }
+    },
+    "raci": {
+      "type": "object",
+      "shape": {
+        "responsible": "string",
+        "accountable": "string",
+        "consulted": "string",
+        "informed": "string"
+      }
+    },
+    "approval": {
+      "type": "object",
+      "shape": {
+        "issuer": "string — e.g., 's/ Director, HSSE'",
+        "adopted_by": "string — usually 'NextDecade Corporation'",
+        "effective_date": "string — dd-Mmm-yyyy"
+      }
+    },
+    "revision_history": {
+      "type": "list[object]",
+      "min_items": 1,
+      "item_shape": {
+        "number": "string — '0' for initial issue, '1', '2'... for subsequent",
+        "description": "string — e.g., 'Issued for Use', 'Updated Section 5 to reflect ...'"
+      }
+    }
+  }
+}
