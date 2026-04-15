@@ -1,0 +1,72 @@
+{
+  "introduction_text": "NextDecade Corporation (NextDecade) generates, receives, and maintains records that are essential to its business operations, regulatory obligations, and legal defensibility. This Records Retention Standard establishes the mandatory minimum retention periods and disposition rules that every member of the Workforce must follow for records created or received in the course of NextDecade business.",
+  "scope_text": "This Standard applies to all NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), and any other affiliated entity records in any format — paper, electronic, audio, video, or other media. It applies to every member of the Workforce, including employees, officers, directors, agents, consultants, contractors, and representatives acting on behalf of NextDecade.",
+  "governance_text": "This Standard is part of NextDecade's integrated Governance Framework of Standards, Procedures, and Guidance. Compliance is mandatory. Related Procedures and Guidance operationalize the retention categories defined below.",
+  "exception_text": "Exceptions to this Standard require written approval from the General Counsel and the Chief Financial Officer. Any member of the Workforce requesting an exception must submit a written request identifying the record category, the alternate retention period, the business justification, and any associated legal or regulatory risk. Compliance audits are performed annually by Internal Audit and on a for-cause basis at the direction of the General Counsel.",
+  "continuous_text": "This Standard is reviewed at least every two years, or sooner when triggered by a change in law, regulation, or NextDecade's business. Feedback from the Workforce is encouraged and should be directed to the Standard Owner identified in the Approval section.",
+  "content_sections": [
+    {
+      "title": "Records Categories and Retention Periods",
+      "intro": "Records are organized into the following categories. The retention period is the minimum period a record must be preserved; records subject to a legal hold are retained until the hold is released in writing by the General Counsel, regardless of the minimum.",
+      "bullets": [
+        "Corporate governance records (board minutes, charters, resolutions, stock ledger): permanent.",
+        "Regulatory filings and correspondence (FERC, DOE, PHMSA, MARAD, TCEQ, EPA, SEC): permanent.",
+        "Financial records (general ledger, audited financial statements, tax returns): seven (7) years after fiscal year end; tax returns permanent.",
+        "Contracts and agreements (executed originals and amendments): seven (7) years after contract termination or expiration.",
+        "HSSE records (incident reports, permits, training records, audits): five (5) years or as required by applicable regulation, whichever is longer.",
+        "Human resources records (personnel files, payroll, benefits): seven (7) years after employee separation; I-9 records per federal rule.",
+        "Project and engineering records (drawings, specifications, commissioning): life of asset plus seven (7) years.",
+        "Routine business correspondence (email, memoranda) not captured above: three (3) years."
+      ]
+    },
+    {
+      "title": "Legal Hold and Disposition",
+      "intro": "When litigation, investigation, audit, or a regulatory inquiry is reasonably anticipated, the General Counsel issues a written legal hold that suspends normal disposition for the identified record categories.",
+      "bullets": [
+        "Upon receipt of a legal hold notice, recipients must preserve all potentially responsive records and suspend any automated deletion.",
+        "Records on legal hold may not be altered, destroyed, or transferred outside of NextDecade custody without written General Counsel approval.",
+        "Once a legal hold is released in writing, records revert to the retention schedule in Section 1 and are disposed of on the next scheduled disposition cycle.",
+        "Disposition of non-privileged records at end of retention is performed by the Records Custodian using methods appropriate to the sensitivity classification (shredding, certified digital destruction)."
+      ]
+    },
+    {
+      "title": "Roles and Workforce Responsibilities",
+      "intro": "Every member of the Workforce is a records custodian for the records they create or receive.",
+      "bullets": [
+        "Workforce members: classify records on creation, file them in approved repositories, and comply with legal holds.",
+        "Records Custodian (per function): maintain category-level retention schedules, manage disposition, coordinate with Legal on holds.",
+        "General Counsel: issue and release legal holds, approve exceptions, adjudicate disputes.",
+        "Chief Financial Officer: approve exceptions affecting financial records.",
+        "Internal Audit: perform annual compliance audits and report to the Audit Committee."
+      ]
+    }
+  ],
+  "definitions": [
+    {"no": "1", "term": "Record", "definition": "Any information, regardless of medium, created or received by NextDecade in the course of business and retained as evidence of a transaction, decision, or activity."},
+    {"no": "2", "term": "Retention Period", "definition": "The minimum time a record must be preserved before it becomes eligible for disposition."},
+    {"no": "3", "term": "Legal Hold", "definition": "A written directive from the General Counsel suspending the normal disposition of identified records because of actual or reasonably anticipated litigation, investigation, or regulatory inquiry."},
+    {"no": "4", "term": "Disposition", "definition": "The final action taken on a record at end of retention — destruction, transfer to archive, or permanent preservation."},
+    {"no": "5", "term": "Workforce", "definition": "Employees, officers, directors, agents, consultants, contractors, representatives, and any other individuals acting on behalf of NextDecade."}
+  ],
+  "references": [
+    {"title": "Code of Conduct Standard", "number": "ORG-NTD-000010-COR-STD-00001"},
+    {"title": "Information Classification Standard", "number": "ORG-NTD-000010-COR-STD-00015"},
+    {"title": "Procedure — Records Custodianship", "number": "ORG-NTD-000010-COR-PRC-00045"},
+    {"title": "Guidance — Email Management", "number": "ORG-NTD-000010-COR-GDN-00008"},
+    {"title": "Sarbanes-Oxley Act, Section 802 (18 U.S.C. § 1519)", "number": "External"}
+  ],
+  "raci": {
+    "responsible": "Records Custodian (by function)",
+    "accountable": "General Counsel",
+    "consulted": "Chief Financial Officer; Internal Audit; Information Technology",
+    "informed": "Executive Leadership Team; Audit Committee of the Board"
+  },
+  "approval": {
+    "issuer": "Jane Doe, General Counsel",
+    "adopted_by": "NextDecade Corporation",
+    "effective_date": "April 15, 2026"
+  },
+  "revision_history": [
+    {"number": "0", "description": "Initial issuance."}
+  ]
+}

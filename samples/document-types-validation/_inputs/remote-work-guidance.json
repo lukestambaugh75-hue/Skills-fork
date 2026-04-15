@@ -1,0 +1,29 @@
+{
+  "purpose_text": "This Guidance describes recommended practices for the Workforce when performing NextDecade work from a location other than a NextDecade-controlled facility. Guidance is advisory: it captures what NextDecade has found to work well and is not mandatory. The mandatory rules are in the Information Classification Standard and the Records Retention Standard.",
+  "governance_text": "This Guidance is part of NextDecade's integrated Governance Framework. It supplements — and does not supersede — any applicable Standard or Procedure.",
+  "guideline_intro": "The following best-practice recommendations apply when working remotely:",
+  "guideline_bullets": [
+    "Work from a private, controlled environment when handling Confidential information; avoid open cafes, shared workspaces, and public Wi-Fi for material-non-public information.",
+    "Use the NextDecade VPN when connecting to company systems over any non-NextDecade network.",
+    "Store company records only in NextDecade-approved repositories (SharePoint, OneDrive). Avoid personal cloud storage, personal email, and USB devices.",
+    "Lock the workstation when stepping away and ensure the device complies with the current endpoint configuration baseline.",
+    "For video meetings with external parties, use the NextDecade-approved meeting platform and its waiting-room controls.",
+    "Confirm your physical location if asked; certain information (for example, Reg FD-sensitive material) has geographic disclosure implications.",
+    "Report a lost or compromised device to the IT Help Desk at ithelp@next-decade.com immediately.",
+    "Maintain the same professional standard of written and verbal communication as when working from a NextDecade facility."
+  ],
+  "raci": {
+    "responsible": "Workforce member working remotely",
+    "accountable": "People Leader (supervisor of record)",
+    "consulted": "Information Technology; Information Security",
+    "informed": "People & Culture"
+  },
+  "approval": {
+    "issuer": "R. Chen, Chief Information Officer",
+    "adopted_by": "NextDecade Corporation",
+    "effective_date": "April 15, 2026"
+  },
+  "revision_history": [
+    {"number": "0", "description": "Initial issuance."}
+  ]
+}
