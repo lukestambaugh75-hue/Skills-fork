@@ -13,6 +13,7 @@ Files to create:
 - `.claude/failure-log.jsonl` (append-only log, gitignored)
 - `.claude/failure-log.archive.jsonl` (processed entries, gitignored)
 - `.claude/skill-improver.kill` (sentinel file — if present, agent is disabled)
+- `.claude/skill-improver.last-run` (timestamp sentinel for the 7-day trigger; gitignored)
 
 Files to update:
 - `.claude/settings.json` — register the two hooks, register the agent
@@ -100,15 +101,28 @@ sample READMEs so the same failure doesn't recur.
    If any check fails, write your notes to .claude/plans/skill-improvements-<date>.md
    instead of committing, and exit.
 
-5. If sanity-checks pass, commit with:
-   - Message: "Skill improvements from failure log <date>"
-   - Trailer: "Learned-from: fail_A, fail_B, fail_C"
+5. If sanity-checks pass, split changes into two commits by target path:
+   - **Commit A (sample READMEs, direct to main)**: any file under `samples/*/README.md`.
+     Message: "Skill improvements (sample docs) from failure log <date>"
+     Trailer: "Learned-from: fail_A, fail_B"
+     Push directly to `main`.
+   - **Commit B (skill docs, via PR)**: any file under `skills/*/SKILL.md`.
+     Message: "Skill improvements (SKILL.md) from failure log <date>"
+     Trailer: "Learned-from: fail_C, fail_D"
+     Push to branch `skill-improver/<date>` and open a PR.
+
+   If only one target type was touched, make only that commit.
 
 6. Archive processed entries: move them from failure-log.jsonl to
    failure-log.archive.jsonl, setting status = "processed_<date>".
+   Retain archive indefinitely (do not rotate) — future audit tool depends on it.
 
-7. If you made commits, push the branch and open a PR titled "skill-improver
-   updates <date>". Do NOT auto-merge.
+7. For Commit B only: open a PR titled "skill-improver updates <date>".
+   - Base: `main`. Head: `skill-improver/<date>`.
+   - Assign `@lukestambaugh75-hue` as reviewer.
+   - Apply label `skill-improver`.
+   - Do NOT request Copilot review. Do NOT enable auto-merge.
+   - PR body: list the Learned-from fail_IDs and a one-line summary per lesson.
 
 ## Hard limits
 
@@ -145,14 +159,45 @@ code change, write a plan under .claude/plans/ instead of making the change.
     "SessionStart": [{
       "matcher": "",
       "hooks": [{
-        "type": "agent",
-        "prompt": "$ARGUMENTS\n\nCheck .claude/failure-log.jsonl. If it has unprocessed entries AND .claude/skill-improver.kill is absent, run the skill-improver agent on the unprocessed entries. Otherwise exit silently.",
-        "timeout": 300,
-        "model": "claude-haiku-4-5-20251001"
+        "type": "command",
+        "command": "~/.claude/hooks/skill-improver-trigger.sh"
       }]
     }]
   }
 }
+```
+
+## `skill-improver-trigger.sh` (draft)
+
+Gates the subagent on the Q3 threshold — ≥5 unprocessed entries OR >7 days since last run. Exits silently otherwise, so SessionStart stays cheap on quiet weeks.
+
+```bash
+#!/bin/bash
+set -euo pipefail
+LOG="$HOME/.claude/failure-log.jsonl"
+KILL="$HOME/.claude/skill-improver.kill"
+LAST="$HOME/.claude/skill-improver.last-run"
+
+[[ -f "$KILL" ]] && exit 0
+[[ -f "$LOG" ]] || exit 0
+
+# Q3 threshold A: count unprocessed entries
+unprocessed=$(jq -c 'select(.status == "unprocessed")' "$LOG" 2>/dev/null | wc -l)
+
+# Q3 threshold B: days since last run (default: forever ago)
+if [[ -f "$LAST" ]]; then
+  now=$(date +%s); then_=$(date -r "$LAST" +%s); days=$(( (now - then_) / 86400 ))
+else
+  days=9999
+fi
+
+if (( unprocessed >= 5 )) || (( days > 7 )); then
+  # emit JSON telling Claude Code to spawn the skill-improver subagent
+  cat <<JSON
+{"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": "Run the skill-improver subagent on .claude/failure-log.jsonl. ${unprocessed} unprocessed entries; ${days} days since last run."}}
+JSON
+  date -u +%FT%TZ > "$LAST"
+fi
 ```
 
 ## `failure-logger.sh` (draft)
@@ -180,18 +225,20 @@ echo "$entry" >> "$LOG"
 ## Acceptance criteria for v1
 
 - PostToolUseFailure hook writes a valid JSONL entry to `.claude/failure-log.jsonl` on any failed Bash/Write/Edit
-- `.gitignore` includes `.claude/failure-log*.jsonl` and `.claude/skill-improver.kill`
-- SessionStart trigger spawns the subagent exactly once per session (no loops)
+- `.gitignore` includes `.claude/failure-log*.jsonl`, `.claude/skill-improver.kill`, and `.claude/skill-improver.last-run`
+- SessionStart trigger is **threshold-gated**: no subagent spawn when unprocessed < 5 AND last run ≤ 7 days ago; subagent spawns exactly once per session when the threshold is crossed
+- `skill-improver.last-run` is stamped on every spawn (not on every SessionStart)
 - Subagent respects all hard limits; refuses to touch source code
-- Running the subagent manually on a seeded log produces a sensible commit + PR
+- Subagent splits commits correctly: `samples/*/README.md` → direct to `main`; `skills/*/SKILL.md` → branch + PR assigned to `@lukestambaugh75-hue`, labelled `skill-improver`, no auto-merge, no Copilot review
+- Archive is append-only — processed entries move to `failure-log.archive.jsonl` but are never deleted
 - Kill switch works: `touch .claude/skill-improver.kill` disables the loop
-- End-to-end smoke: intentionally fail a Bash command, start a new session, see the subagent produce an updated SKILL.md
+- End-to-end smoke: seed 5 failures, start a new session, see the subagent produce a direct-to-main sample-README commit and/or a SKILL.md PR as appropriate
 
 ## Risks to address during build
 
 1. **Second-order failures**: subagent's own failures could populate the log and cause a feedback loop. Mitigation: subagent ignores entries where `tool_name = Task` or the agent name is "skill-improver".
 2. **Self-drift**: subagent updating SKILL.md drifts from brand guidelines. Mitigation: commit to a branch, open a PR, human review required.
-3. **Log growth**: unbounded log eats disk. Mitigation: archive rotation, max-entry cap per run.
+3. **Log growth**: unbounded log eats disk. Mitigation: archive is **not** rotated (per decision Q4 — future audit tool needs the history), but the active `failure-log.jsonl` is drained on every run and a max-entry cap (10) per run prevents any single run from ballooning. If archive size ever becomes a real problem, compress in place (`gzip failure-log.archive.jsonl`) rather than delete.
 4. **Sensitive data in stderr**: tool errors may contain paths, API keys, PII. Mitigation: logger strips obvious secrets via regex (SEC_KEY_RE, API_TOKEN_RE) before writing.
 5. **Wrong attribution**: subagent blames a skill for a failure that's actually in a sample file. Mitigation: group by skill ONLY when the failed file is inside `skills/*/`; otherwise group by sample path.
 
@@ -204,9 +251,13 @@ echo "$entry" >> "$LOG"
 
 **Total**: one focused session.
 
-## Open questions for the next chat
+## Resolved decisions (2026-04-15)
 
-1. Who reviews the subagent's PRs — the user, or a designated reviewer?
-2. Should the subagent be allowed to update sample-artifact READMEs directly without PR? (My recommendation: yes; docs-only; low risk.)
-3. Auto-run on every SessionStart, or only when `.claude/failure-log.jsonl` crosses a size threshold (e.g., 5 entries)?
-4. Include the failure logs in a future audit tool that shows trends over time?
+1. **PR reviewer**: User (`@lukestambaugh75-hue`) as single maintainer. Subagent opens PRs against `main`, assigns `@lukestambaugh75-hue` as reviewer, applies the `skill-improver` label, and does **not** request Copilot review. No auto-merge.
+2. **Sample-artifact READMEs — direct commit to `main`**: Approved (docs-only, low risk). Subagent commits changes under `samples/*/README.md` directly. Changes under `skills/*/SKILL.md` go through PR. If a single run touches both, the subagent splits into two commits and only the skill-doc commit is pushed to the branch + PR; the sample-README commit lands on `main` separately.
+3. **Trigger**: Threshold-based, not every SessionStart. Subagent runs only when **either**:
+   - `.claude/failure-log.jsonl` has **≥5 unprocessed entries**, OR
+   - **>7 days** since the last skill-improver run (stamp in `.claude/skill-improver.last-run`).
+
+   This avoids noisy PRs on low-failure weeks while guaranteeing periodic review.
+4. **Audit tool (future, out of scope for v1)**: Yes. `failure-log.archive.jsonl` is retained indefinitely (not rotated out) so a future audit tool can compute trends — failure rate per skill, recurring error patterns, time-to-fix after a "Lesson learned" lands. V1 simply preserves the data; the tool itself is a later plan.
