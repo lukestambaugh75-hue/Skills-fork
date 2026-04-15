@@ -1,7 +1,7 @@
 # Gap Analysis — Document-Type Validation Sample Set
 
 **Audit date:** 2026-04-15
-**Scope:** `samples/document-types-validation/` (15 artifacts, 5 subfolders), plus the `/skills/` folder and `/uploads/` intake against `extracted-specs.md` and `gap-report.md`.
+**Scope:** `samples/document-types-validation/` (15 artifacts, 5 subfolders), plus the `/skills/` folder and the `/NextDecade-Claude-Project/` bundle against `extracted-specs.md` and `gap-report.md`.
 **Purpose:** Tell the user what's still missing, what it costs them if unfixed, and what the smallest credible step is to close each item.
 
 ---

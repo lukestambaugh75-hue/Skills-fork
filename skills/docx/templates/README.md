@@ -6,7 +6,7 @@ Templates here are **edit-in-Word, render-via-Python**. Markers like `{{ purpose
 
 | File | Purpose |
 |---|---|
-| `Procedure Template (Jinja).docx` | Procedure template, derived from `uploads/04-document-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx`. |
+| `Procedure Template (Jinja).docx` | Procedure template, derived from `NextDecade-Claude-Project/03-original-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx`. |
 | `procedure_schema.json` | Schema for the input dict — required and optional markers, field types, item shapes. |
 | `Standard Template (Jinja).docx` | Standard template (legacy layout — Standard Template.docx). |
 | `standard_schema.json` | Schema for Standard inputs. |

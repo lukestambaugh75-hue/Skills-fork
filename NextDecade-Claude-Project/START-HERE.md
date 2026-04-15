@@ -6,9 +6,9 @@ This folder has everything you need to upload to a Claude Project so Claude can 
 
 > **Prerequisite:** Claude Projects requires a Claude **Pro, Team, or Enterprise** plan. It is not available on the Free plan.
 
-1. **Download the ZIP and unzip locally** — Claude web uploads individual files, not folders or ZIPs.
+1. **Get the `NextDecade-Claude-Project/` folder locally** — clone this repo (or download the folder from GitHub); Claude web uploads individual files, not folders. Also grab `extracted-specs.md` and `gap-report.md` from the repo root — upload those alongside the brand references.
 2. **Create a new Claude Project** at [claude.ai](https://claude.ai) → sidebar → **Projects** → **Create project**.
-3. **Upload all the files individually** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders (drag-select the contents of each folder into the project's Add content dialog — the web UI does not accept a folder or ZIP as a unit). **When uploading `02-templates/`, skip the two `.pptx` and `.potx` files — Claude Projects rejects those formats. Upload the matching `.pdf` siblings instead (`HSSE Flash Template.pdf` and `NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf`) — those are pre-generated from the PowerPoint originals and carry the same brand layouts.** In the Project's *Custom instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
+3. **Upload all the files individually** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders (drag-select the contents of each folder into the project's Add content dialog — the web UI does not accept a folder as a unit), plus `extracted-specs.md` and `gap-report.md` from the repo root. **When uploading `02-templates/`, skip the two `.pptx` and `.potx` files — Claude Projects rejects those formats. Upload the matching `.pdf` siblings instead (`HSSE Flash Template.pdf` and `NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf`) — those are pre-generated from the PowerPoint originals and carry the same brand layouts.** In the Project's *Custom instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
 
 That's it. Claude now knows how to draft on-brand NextDecade content.
 
@@ -32,7 +32,7 @@ That's it. Claude now knows how to draft on-brand NextDecade content.
 
 | Folder | What's in it | Why it's there |
 |---|---|---|
-| `01-brand-references/` | Brand & Style Guidelines PDF, Writing Style Guide PDF, `extracted-specs.md` (Claude-readable distillation of brand specs), `gap-report.md` | So Claude knows the canonical colors, fonts, voice rules, and what's still missing |
+| `01-brand-references/` | Brand & Style Guidelines PDF, Writing Style Guide PDF. Pair these with `extracted-specs.md` and `gap-report.md` from the repo root (Claude-readable distillation of brand specs and known gaps). | So Claude knows the canonical colors, fonts, voice rules, and what's still missing |
 | `02-templates/` | Jinja-tagged DOCX templates (Procedure — Rev 1; Standard and Guidance — legacy), the PowerPoint master (brand-corrected), HSSE Flash template, JSON schemas (procedure is v2.0.0), template `README.md` | These are the production templates Claude references when drafting |
 | `03-original-templates/` | Un-tagged source versions | For editing in Word if you need to update structure, and for Claude to reference if asked |
 | `04-scripts/` | Python scripts (`render_docx.py`, `render_pptx.py`, linters) | Only used if you're running **Claude Code** (the CLI/desktop app), not the web Project — for fully automated generation. See `04-scripts/README.md`. |

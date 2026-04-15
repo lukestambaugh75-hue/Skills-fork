@@ -18,9 +18,10 @@ from __future__ import annotations
 import sys, json, zipfile, re
 from pathlib import Path
 
-DEFAULT_MASTER = Path(
-    "/home/user/Skills-fork/uploads/05-presentation-templates/"
-    "NextDecade Power Point Slide Master_Final_Oct 2025.potx"
+HERE = Path(__file__).resolve().parent
+DEFAULT_MASTER = (
+    HERE.parent / "02-templates"
+    / "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
 
 REQUIRED_LAYOUTS = [

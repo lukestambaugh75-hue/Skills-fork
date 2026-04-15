@@ -3,8 +3,8 @@
 Template (Rev 1, April 9 2026 layout) by injecting docxtpl markers.
 
 Re-run this script after the source template (in
-`uploads/04-document-templates/`) is updated. The output overwrites
-`skills/docx/templates/Procedure Template (Jinja).docx`.
+`NextDecade-Claude-Project/03-original-templates/`) is updated. The output
+overwrites `skills/docx/templates/Procedure Template (Jinja).docx`.
 
 Usage:
     python skills/docx/scripts/build_procedure_jinja.py
@@ -20,7 +20,7 @@ from docx import Document
 from docx.oxml.ns import qn  # noqa: F401
 
 REPO = Path(__file__).resolve().parents[3]
-SRC = REPO / "uploads" / "04-document-templates" / \
+SRC = REPO / "NextDecade-Claude-Project" / "03-original-templates" / \
     "NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx"
 DST = REPO / "skills" / "docx" / "templates" / \
     "Procedure Template (Jinja).docx"

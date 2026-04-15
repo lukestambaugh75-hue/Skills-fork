@@ -21,7 +21,7 @@ The pipeline:
 
 ### Source template
 
-The Jinja template is built from `uploads/04-document-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` (Rev 1, Apr 9 2026 layout). Section structure:
+The Jinja template is built from `NextDecade-Claude-Project/03-original-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` (Rev 1, Apr 9 2026 layout). Section structure:
 
 1. Cover page (procedure title, doc number)
 2. Revision History table + Change Log table

@@ -43,9 +43,10 @@ from __future__ import annotations
 import sys, json, shutil, zipfile, subprocess
 from pathlib import Path
 
-MASTER = Path(
-    "/home/user/Skills-fork/uploads/05-presentation-templates/"
-    "NextDecade Power Point Slide Master_Final_Oct 2025.potx"
+HERE = Path(__file__).resolve().parent
+MASTER = (
+    HERE.parent / "02-templates"
+    / "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
 
 

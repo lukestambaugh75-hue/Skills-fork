@@ -12,8 +12,8 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
 
-POTX = Path("/home/user/Skills-fork/uploads/05-presentation-templates/"
-            "NextDecade Power Point Slide Master_Final_Oct 2025.potx")
+POTX = Path("/home/user/Skills-fork/NextDecade-Claude-Project/02-templates/"
+            "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx")
 
 # Layout index map (verified from the .potx)
 LAYOUT = {
