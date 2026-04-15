@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.0",
+  "template": "Standard Template (Jinja).docx",
+  "description": "Input schema for NextDecade Standard documents.",
+  "required_markers": [
+    "introduction_text", "scope_text", "governance_text",
+    "exception_text", "continuous_text",
+    "content_sections", "definitions", "references",
+    "raci", "approval", "revision_history"
+  ],
+  "optional_markers": ["s", "b", "d", "ref", "rev"],
+  "fields": {
+    "introduction_text": {"type": "string", "description": "INTRODUCTION paragraph (Standards use INTRODUCTION where Procedures use PURPOSE)."},
+    "scope_text": {"type": "string"},
+    "governance_text": {"type": "string"},
+    "exception_text": {"type": "string"},
+    "continuous_text": {"type": "string"},
+    "definitions": {"type": "list[object]", "item_shape": {"no": "string", "term": "string", "definition": "string"}},
+    "references": {"type": "list[object]", "item_shape": {"title": "string", "number": "string"}},
+    "content_sections": {"type": "list[object]", "item_shape": {"title": "string", "intro": "string", "bullets": "list[string]"}},
+    "raci": {"type": "object", "shape": {"responsible": "string", "accountable": "string", "consulted": "string", "informed": "string"}},
+    "approval": {"type": "object", "shape": {"issuer": "string", "adopted_by": "string", "effective_date": "string"}},
+    "revision_history": {"type": "list[object]", "item_shape": {"number": "string", "description": "string"}}
+  }
+}

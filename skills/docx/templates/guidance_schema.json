@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0.0",
+  "template": "Guidance Template (Jinja).docx",
+  "description": "Input schema for NextDecade Guidance documents. Guidance is advisory (best-practice recommendations); shorter than Standards or Procedures — no Definitions, References, Exception, or Continuous Improvement sections.",
+  "required_markers": [
+    "purpose_text", "governance_text",
+    "guideline_intro", "guideline_bullets",
+    "raci", "approval", "revision_history"
+  ],
+  "optional_markers": ["b", "rev"],
+  "fields": {
+    "purpose_text": {"type": "string"},
+    "governance_text": {"type": "string"},
+    "guideline_intro": {"type": "string", "description": "Intro paragraph of the GUIDELINE section."},
+    "guideline_bullets": {"type": "list[string]", "description": "Bulleted best-practice recommendations."},
+    "raci": {"type": "object", "shape": {"responsible": "string", "accountable": "string", "consulted": "string", "informed": "string"}},
+    "approval": {"type": "object", "shape": {"issuer": "string", "adopted_by": "string", "effective_date": "string"}},
+    "revision_history": {"type": "list[object]", "item_shape": {"number": "string", "description": "string"}}
+  }
+}

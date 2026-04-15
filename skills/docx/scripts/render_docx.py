@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""docxtpl render pipeline with pre-render lint and walk-and-replace fallback.
+"""docxtpl render pipeline for NextDecade governance documents.
 
-Pipeline:
-  1. Lint the template (lint_docx_template.py).
-  2. If lint passes (exit 0):  render with docxtpl + StrictUndefined.
-  3. If lint reports recoverable issues only (exit 2): render with docxtpl,
-     warn caller.
-  4. If lint reports errors (exit 3): fall back to walk-and-replace using
-     the original (pre-Jinja) template and a content-mapping function.
+Supports: procedure, standard, guidance. Each has a Jinja-tagged template and
+a JSON schema under ../templates/. Pipeline:
+  1. Lint the Jinja template (scripts/lint_docx_template.py).
+  2. If clean/warnings only -> render with docxtpl + StrictUndefined.
+  3. If errors -> fall back to walk-and-replace on the ORIGINAL template.
+  4. Optional: convert the rendered .docx to .pdf via LibreOffice.
 
-Usage as module:
-  from render_docx import render_procedure
-  render_procedure(input_dict, "/path/to/output.docx")
+CLI:
+  python render_docx.py <doc_type> <input.json> <output.docx> [--pdf] [--no-fallback]
+    doc_type: procedure | standard | guidance
 
-Usage as CLI:
-  python render_docx.py <input.json> <output.docx> [--no-fallback]
+Module:
+  from render_docx import render
+  report = render("procedure", data_dict, "/path/to/output.docx", pdf=True)
 """
 from __future__ import annotations
-import sys, json, subprocess, shutil
+import sys, json, subprocess, shutil, os
 from pathlib import Path
 from typing import Any
 
@@ -25,57 +25,61 @@ HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE.parent / "templates"
 LINTER = HERE / "lint_docx_template.py"
 
-# Original (un-Jinja'd) template for the walk-and-replace fallback path
-ORIGINAL_TEMPLATE = Path(
-    "/home/user/Skills-fork/uploads/04-document-templates/Procedure Template.docx"
-)
-JINJA_TEMPLATE = TEMPLATES / "Procedure Template (Jinja).docx"
-SCHEMA = TEMPLATES / "procedure_schema.json"
+# Template registry — extend here when adding new document types
+DOC_TYPES = {
+    "procedure": {
+        "jinja_template": TEMPLATES / "Procedure Template (Jinja).docx",
+        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Procedure Template.docx"),
+        "schema": TEMPLATES / "procedure_schema.json",
+        "fallback": "walk_replace_procedure",
+    },
+    "standard": {
+        "jinja_template": TEMPLATES / "Standard Template (Jinja).docx",
+        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Standard Template.docx"),
+        "schema": TEMPLATES / "standard_schema.json",
+        "fallback": "walk_replace_standard",
+    },
+    "guidance": {
+        "jinja_template": TEMPLATES / "Guidance Template (Jinja).docx",
+        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Guidance Template.docx"),
+        "schema": TEMPLATES / "guidance_schema.json",
+        "fallback": "walk_replace_guidance",
+    },
+}
 
-
-# ---------------------------------------------------------------------------
-# Primary path: docxtpl render
-# ---------------------------------------------------------------------------
-def render_via_docxtpl(data: dict, template: Path, output: Path) -> None:
-    from docxtpl import DocxTemplate
-    from jinja2 import StrictUndefined
-    tpl = DocxTemplate(str(template))
-    tpl.render(data, jinja_env=_strict_env())
-    tpl.save(str(output))
 
 def _strict_env():
     from jinja2 import Environment, StrictUndefined
     return Environment(undefined=StrictUndefined, autoescape=False)
 
 
-# ---------------------------------------------------------------------------
-# Fallback path: walk-and-replace on the ORIGINAL template
-# ---------------------------------------------------------------------------
-def render_via_walk_and_replace(data: dict, output: Path) -> None:
-    """Walk-and-replace on the original (pre-Jinja) Procedure Template.
+def render_via_docxtpl(data: dict, template: Path, output: Path) -> None:
+    from docxtpl import DocxTemplate
+    tpl = DocxTemplate(str(template))
+    tpl.render(data, jinja_env=_strict_env())
+    tpl.save(str(output))
 
-    This path is the safety net: if the Jinja template gets corrupted by a
-    Word edit, we still produce a brand-correct procedure from the original.
-    """
+
+# ---------------------------------------------------------------------------
+# Walk-and-replace fallback (per-doc-type)
+# ---------------------------------------------------------------------------
+def _wr_common_setup(original: Path, output: Path):
     from docx import Document
     from copy import deepcopy
     from docx.text.paragraph import Paragraph
-
-    shutil.copy2(ORIGINAL_TEMPLATE, output)
+    shutil.copy2(original, output)
     doc = Document(str(output))
 
-    def _set_text(p, text):
+    def _set(p, text):
         runs = p.runs
-        if not runs:
-            p.add_run(text); return
+        if not runs: p.add_run(text); return
         runs[0].text = text
         for r in runs[1:]:
             r._element.getparent().remove(r._element)
 
     def _h1(token):
         for i, p in enumerate(doc.paragraphs):
-            if p.style and p.style.name == "Heading 1" and \
-               token.lower() in p.text.strip().lower():
+            if p.style and p.style.name == "Heading 1" and token.lower() in p.text.strip().lower():
                 return i
         return None
 
@@ -84,23 +88,19 @@ def render_via_walk_and_replace(data: dict, output: Path) -> None:
         for k in range(idx + 1, len(doc.paragraphs)):
             p = doc.paragraphs[k]
             if p.style and p.style.name == "Heading 1": return
-            if p.text.strip():
-                _set_text(p, text); return
+            if p.text.strip(): _set(p, text); return
 
-    _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
-    _fill_after(_h1("SCOPE"),                    data["scope_text"])
-    _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
-    _fill_after(_h1("EXCEPTION REQUEST"),        data["exception_text"])
-    _fill_after(_h1("CONTINUOUS IMPROVEMENT"),   data["continuous_text"])
+    return doc, _set, _h1, _fill_after, deepcopy, Paragraph
 
-    # Content sections
+
+def _wr_fill_content_sections(doc, data, _set, deepcopy, Paragraph):
     sections = data["content_sections"]
     slots = [i for i, p in enumerate(doc.paragraphs)
              if p.style and p.style.name == "Heading 1" and "[CONTENT TITLE]" in p.text]
 
-    def _fill_content_section(heading_idx, section):
+    def fill(heading_idx, section):
         h = doc.paragraphs[heading_idx]
-        _set_text(h, section["title"])
+        _set(h, section["title"])
         intro_set = False
         bullet_paragraphs = []
         for k in range(heading_idx + 1, len(doc.paragraphs)):
@@ -108,34 +108,32 @@ def render_via_walk_and_replace(data: dict, output: Path) -> None:
             if p.style and p.style.name == "Heading 1": break
             if not p.text.strip(): continue
             if not intro_set:
-                _set_text(p, section["intro"]); intro_set = True
+                _set(p, section["intro"]); intro_set = True
             else:
                 bullet_paragraphs.append(p)
         bullets = section["bullets"]
         if len(bullets) <= len(bullet_paragraphs):
             for i, b in enumerate(bullets):
-                _set_text(bullet_paragraphs[i], b)
+                _set(bullet_paragraphs[i], b)
             for extra in bullet_paragraphs[len(bullets):]:
                 extra._element.getparent().remove(extra._element)
         else:
             for i, p in enumerate(bullet_paragraphs):
-                _set_text(p, bullets[i])
+                _set(p, bullets[i])
             last = bullet_paragraphs[-1]
             for b in bullets[len(bullet_paragraphs):]:
                 new_el = deepcopy(last._element)
                 last._element.addnext(new_el)
                 last = Paragraph(new_el, last._parent)
-                _set_text(last, b)
+                _set(last, b)
 
-    n_slots = len(slots)
-    n_sections = len(sections)
+    n_slots, n_sections = len(slots), len(sections)
     if n_sections <= n_slots:
         for i in range(n_sections):
             slot_idx = [j for j, p in enumerate(doc.paragraphs)
                         if p.style and p.style.name == "Heading 1"
                         and "[CONTENT TITLE]" in p.text][0]
-            _fill_content_section(slot_idx, sections[i])
-        # Remove unused slots
+            fill(slot_idx, sections[i])
         while True:
             remaining = [j for j, p in enumerate(doc.paragraphs)
                          if p.style and p.style.name == "Heading 1"
@@ -151,12 +149,11 @@ def render_via_walk_and_replace(data: dict, output: Path) -> None:
             for el in to_remove:
                 el.getparent().remove(el)
     else:
-        # Fill all slots, then clone-from-last for remaining sections
         for i in range(n_slots):
             slot_idx = [j for j, p in enumerate(doc.paragraphs)
                         if p.style and p.style.name == "Heading 1"
                         and "[CONTENT TITLE]" in p.text][0]
-            _fill_content_section(slot_idx, sections[i])
+            fill(slot_idx, sections[i])
         last_title = sections[n_slots - 1]["title"]
         last_h_idx = max(j for j, p in enumerate(doc.paragraphs)
                          if p.style and p.style.name == "Heading 1"
@@ -175,86 +172,221 @@ def render_via_walk_and_replace(data: dict, output: Path) -> None:
             new_h_idx = max(j for j, p in enumerate(doc.paragraphs)
                             if p.style and p.style.name == "Heading 1"
                             and p.text.strip() == last_title)
-            _fill_content_section(new_h_idx, sec)
+            fill(new_h_idx, sec)
 
-    # Tables
+
+def _wr_fill_tables(doc, table_plans, _set):
     for t in doc.tables:
-        headers = [c.text.strip() for c in t.rows[0].cells]
-        if headers[:3] == ["No.", "Term", "Definition"]:
-            data_rows = list(t.rows)[1:]
-            for i, d in enumerate(data["definitions"]):
-                if i < len(data_rows):
-                    r = data_rows[i]
-                    _set_text(r.cells[0].paragraphs[0], d["no"])
-                    _set_text(r.cells[1].paragraphs[0], d["term"])
-                    _set_text(r.cells[2].paragraphs[0], d["definition"])
-                else:
-                    new_row = t.add_row()
-                    new_row.cells[0].text = d["no"]
-                    new_row.cells[1].text = d["term"]
-                    new_row.cells[2].text = d["definition"]
-            for r in data_rows[len(data["definitions"]):]:
-                r._element.getparent().remove(r._element)
-        elif headers[:2] == ["Title", "Document Number"]:
-            data_rows = list(t.rows)[1:]
-            for i, ref in enumerate(data["references"]):
-                if i < len(data_rows):
-                    r = data_rows[i]
-                    _set_text(r.cells[0].paragraphs[0], ref["title"])
-                    _set_text(r.cells[1].paragraphs[0], ref["number"])
-                else:
-                    new_row = t.add_row()
-                    new_row.cells[0].text = ref["title"]
-                    new_row.cells[1].text = ref["number"]
-            for r in data_rows[len(data["references"]):]:
-                r._element.getparent().remove(r._element)
-        elif headers[:4] == ["Responsible", "Accountable", "Consulted", "Informed"]:
-            if len(t.rows) > 1:
-                r = t.rows[1]
-                raci = data["raci"]
-                _set_text(r.cells[0].paragraphs[0], raci["responsible"])
-                _set_text(r.cells[1].paragraphs[0], raci["accountable"])
-                _set_text(r.cells[2].paragraphs[0], raci["consulted"])
-                _set_text(r.cells[3].paragraphs[0], raci["informed"])
-        elif headers[:3] == ["Issuer / Title", "Adopted By", "Effective / Amended Date"]:
-            if len(t.rows) > 1:
-                r = t.rows[1]
-                ap = data["approval"]
-                _set_text(r.cells[0].paragraphs[0], ap["issuer"])
-                _set_text(r.cells[1].paragraphs[0], ap["adopted_by"])
-                _set_text(r.cells[2].paragraphs[0], ap["effective_date"])
-        elif headers[:2] == ["Revision", "Description of Changes and Notes"]:
-            data_rows = list(t.rows)[1:]
-            for i, rev in enumerate(data["revision_history"]):
-                if i < len(data_rows):
-                    r = data_rows[i]
-                    _set_text(r.cells[0].paragraphs[0], rev["number"])
-                    _set_text(r.cells[1].paragraphs[0], rev["description"])
-                else:
-                    new_row = t.add_row()
-                    new_row.cells[0].text = rev["number"]
-                    new_row.cells[1].text = rev["description"]
-            for r in data_rows[len(data["revision_history"]):]:
-                r._element.getparent().remove(r._element)
+        headers = tuple(c.text.strip() for c in t.rows[0].cells)
+        for plan in table_plans:
+            if headers[:len(plan["match"])] == plan["match"]:
+                plan["apply"](t)
+                break
 
+
+def walk_replace_procedure(data: dict, output: Path):
+    original = DOC_TYPES["procedure"]["original_template"]
+    doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
+    _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
+    _fill_after(_h1("SCOPE"),                    data["scope_text"])
+    _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
+    _fill_after(_h1("EXCEPTION REQUEST"),        data["exception_text"])
+    _fill_after(_h1("CONTINUOUS IMPROVEMENT"),   data["continuous_text"])
+    _wr_fill_content_sections(doc, data, _set, deepcopy, Paragraph)
+    _wr_fill_tables(doc, _std_proc_table_plans(data, _set), _set)
     doc.save(str(output))
+
+
+def walk_replace_standard(data: dict, output: Path):
+    original = DOC_TYPES["standard"]["original_template"]
+    doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
+    _fill_after(_h1("INTRODUCTION"),             data["introduction_text"])
+    _fill_after(_h1("SCOPE"),                    data["scope_text"])
+    _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
+    _fill_after(_h1("EXCEPTION REQUEST"),        data["exception_text"])
+    _fill_after(_h1("CONTINUOUS IMPROVEMENT"),   data["continuous_text"])
+    _wr_fill_content_sections(doc, data, _set, deepcopy, Paragraph)
+    _wr_fill_tables(doc, _std_proc_table_plans(data, _set), _set)
+    doc.save(str(output))
+
+
+def walk_replace_guidance(data: dict, output: Path):
+    original = DOC_TYPES["guidance"]["original_template"]
+    doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
+    _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
+    _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
+    # GUIDELINE: intro + bullets (no title repetition)
+    gi = _h1("GUIDELINE")
+    if gi is not None:
+        intro_set = False
+        bullet_paragraphs = []
+        for k in range(gi + 1, len(doc.paragraphs)):
+            p = doc.paragraphs[k]
+            if p.style and p.style.name == "Heading 1": break
+            if not p.text.strip(): continue
+            if not intro_set:
+                _set(p, data["guideline_intro"]); intro_set = True
+            else:
+                bullet_paragraphs.append(p)
+        bullets = data["guideline_bullets"]
+        if len(bullets) <= len(bullet_paragraphs):
+            for i, b in enumerate(bullets):
+                _set(bullet_paragraphs[i], b)
+            for extra in bullet_paragraphs[len(bullets):]:
+                extra._element.getparent().remove(extra._element)
+        else:
+            for i, p in enumerate(bullet_paragraphs):
+                _set(p, bullets[i])
+            last = bullet_paragraphs[-1]
+            for b in bullets[len(bullet_paragraphs):]:
+                new_el = deepcopy(last._element)
+                last._element.addnext(new_el)
+                last = Paragraph(new_el, last._parent)
+                _set(last, b)
+
+    _wr_fill_tables(doc, _table_plans_guidance(data, _set), _set)
+    doc.save(str(output))
+
+
+def _std_proc_table_plans(data, _set):
+    def fill_defs(t):
+        data_rows = list(t.rows)[1:]
+        for i, d in enumerate(data["definitions"]):
+            if i < len(data_rows):
+                r = data_rows[i]
+                _set(r.cells[0].paragraphs[0], d["no"])
+                _set(r.cells[1].paragraphs[0], d["term"])
+                _set(r.cells[2].paragraphs[0], d["definition"])
+            else:
+                new_row = t.add_row()
+                new_row.cells[0].text = d["no"]
+                new_row.cells[1].text = d["term"]
+                new_row.cells[2].text = d["definition"]
+        for r in data_rows[len(data["definitions"]):]:
+            r._element.getparent().remove(r._element)
+
+    def fill_refs(t):
+        data_rows = list(t.rows)[1:]
+        for i, ref in enumerate(data["references"]):
+            if i < len(data_rows):
+                r = data_rows[i]
+                _set(r.cells[0].paragraphs[0], ref["title"])
+                _set(r.cells[1].paragraphs[0], ref["number"])
+            else:
+                new_row = t.add_row()
+                new_row.cells[0].text = ref["title"]
+                new_row.cells[1].text = ref["number"]
+        for r in data_rows[len(data["references"]):]:
+            r._element.getparent().remove(r._element)
+
+    return [
+        {"match": ("No.", "Term", "Definition"), "apply": fill_defs},
+        {"match": ("Title", "Document Number"), "apply": fill_refs},
+    ] + _table_plans_common(data, _set)
+
+
+def _table_plans_guidance(data, _set):
+    return _table_plans_common(data, _set)
+
+
+def _table_plans_common(data, _set):
+    def fill_raci(t):
+        if len(t.rows) > 1:
+            r = t.rows[1]
+            raci = data["raci"]
+            _set(r.cells[0].paragraphs[0], raci["responsible"])
+            _set(r.cells[1].paragraphs[0], raci["accountable"])
+            _set(r.cells[2].paragraphs[0], raci["consulted"])
+            _set(r.cells[3].paragraphs[0], raci["informed"])
+
+    def fill_approval(t):
+        if len(t.rows) > 1:
+            r = t.rows[1]
+            ap = data["approval"]
+            _set(r.cells[0].paragraphs[0], ap["issuer"])
+            _set(r.cells[1].paragraphs[0], ap["adopted_by"])
+            _set(r.cells[2].paragraphs[0], ap["effective_date"])
+
+    def fill_rev(t):
+        data_rows = list(t.rows)[1:]
+        for i, rev in enumerate(data["revision_history"]):
+            if i < len(data_rows):
+                r = data_rows[i]
+                _set(r.cells[0].paragraphs[0], rev["number"])
+                _set(r.cells[1].paragraphs[0], rev["description"])
+            else:
+                new_row = t.add_row()
+                new_row.cells[0].text = rev["number"]
+                new_row.cells[1].text = rev["description"]
+        for r in data_rows[len(data["revision_history"]):]:
+            r._element.getparent().remove(r._element)
+
+    return [
+        {"match": ("Responsible", "Accountable", "Consulted", "Informed"), "apply": fill_raci},
+        {"match": ("Issuer / Title", "Adopted By", "Effective / Amended Date"), "apply": fill_approval},
+        {"match": ("Revision", "Description of Changes and Notes"), "apply": fill_rev},
+    ]
+
+
+FALLBACK_FNS = {
+    "walk_replace_procedure": walk_replace_procedure,
+    "walk_replace_standard":  walk_replace_standard,
+    "walk_replace_guidance":  walk_replace_guidance,
+}
+
+
+# ---------------------------------------------------------------------------
+# PDF export via LibreOffice
+# ---------------------------------------------------------------------------
+def convert_to_pdf(docx_path: Path, pdf_path: Path | None = None) -> Path:
+    """Convert a .docx to .pdf via headless LibreOffice (soffice).
+
+    soffice must be installed with the Writer component. On Debian/Ubuntu:
+      apt-get install libreoffice-writer
+
+    Uses an isolated -env:UserInstallation profile so concurrent soffice
+    invocations don't collide on shared profile state (required in sandboxes).
+    """
+    import tempfile
+    docx_path = Path(docx_path)
+    if pdf_path is None:
+        pdf_path = docx_path.with_suffix(".pdf")
+    out_dir = pdf_path.parent
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        profile_arg = f"-env:UserInstallation=file://{tmpdir}/lo_profile"
+        cmd = ["soffice", "--headless", profile_arg, "--convert-to", "pdf",
+               "--outdir", str(out_dir), str(docx_path)]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"LibreOffice conversion failed (exit {result.returncode}):\n"
+                f"stderr: {result.stderr}\nstdout: {result.stdout}"
+            )
+    actual = out_dir / (docx_path.stem + ".pdf")
+    if actual != pdf_path and actual.exists():
+        shutil.move(str(actual), str(pdf_path))
+    if not pdf_path.exists():
+        raise RuntimeError(f"PDF was not produced at {pdf_path}")
+    return pdf_path
 
 
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
-def render_procedure(data: dict, output: str | Path,
-                     allow_fallback: bool = True) -> dict:
-    """Render a NextDecade Procedure document.
-
-    Returns a small report describing which path was taken and any warnings.
-    """
+def render(doc_type: str, data: dict, output: str | Path,
+           allow_fallback: bool = True, pdf: bool = False) -> dict:
+    if doc_type not in DOC_TYPES:
+        raise ValueError(f"Unknown doc_type {doc_type!r}. "
+                         f"Expected one of: {sorted(DOC_TYPES)}")
+    cfg = DOC_TYPES[doc_type]
     output = Path(output)
-    report = {"output": str(output), "path": None, "warnings": []}
+    report = {"doc_type": doc_type, "output": str(output), "path": None, "warnings": []}
 
     # Step 1: lint
     proc = subprocess.run(
-        [sys.executable, str(LINTER), str(JINJA_TEMPLATE), str(SCHEMA)],
+        [sys.executable, str(LINTER), str(cfg["jinja_template"]), str(cfg["schema"])],
         capture_output=True, text=True,
     )
     lint_report = json.loads(proc.stdout) if proc.stdout else {}
@@ -265,51 +397,62 @@ def render_procedure(data: dict, output: str | Path,
         "warning_count": len(lint_report.get("warnings", [])),
     }
 
-    # Step 2: choose path
-    if lint_exit == 0:
-        render_via_docxtpl(data, JINJA_TEMPLATE, output)
-        report["path"] = "docxtpl"
-    elif lint_exit == 2:
-        # Recoverable: try docxtpl, surface warnings
+    # Step 2: route
+    if lint_exit in (0, 2):
         try:
-            render_via_docxtpl(data, JINJA_TEMPLATE, output)
+            render_via_docxtpl(data, cfg["jinja_template"], output)
             report["path"] = "docxtpl"
-            report["warnings"] = [w["message"] for w in lint_report.get("warnings", [])]
+            if lint_exit == 2:
+                report["warnings"] = [w["message"] for w in lint_report.get("warnings", [])]
         except Exception as e:
             if allow_fallback:
-                render_via_walk_and_replace(data, output)
+                FALLBACK_FNS[cfg["fallback"]](data, output)
                 report["path"] = "walk_and_replace_fallback"
                 report["warnings"].append(f"docxtpl raised: {e}; used fallback")
             else:
                 raise
     else:
-        # Unrecoverable Jinja template issues — go straight to fallback
         if allow_fallback:
-            render_via_walk_and_replace(data, output)
+            FALLBACK_FNS[cfg["fallback"]](data, output)
             report["path"] = "walk_and_replace_fallback"
             report["warnings"].append(
-                "Jinja template has unrecoverable issues; rendered via "
-                "walk-and-replace on the original template. "
+                "Jinja template has unrecoverable issues; rendered via walk-and-replace. "
                 "Fix the Jinja template to restore the fast path."
             )
             report["lint_issues"] = lint_report.get("issues", [])
         else:
             raise RuntimeError(
-                f"Template lint failed with exit {lint_exit}; "
-                f"fallback disabled. Issues: {lint_report.get('issues')}"
+                f"Template lint failed with exit {lint_exit}; fallback disabled. "
+                f"Issues: {lint_report.get('issues')}"
             )
+
+    # Step 3: optional PDF
+    if pdf:
+        try:
+            pdf_path = convert_to_pdf(output)
+            report["pdf"] = str(pdf_path)
+        except Exception as e:
+            report["warnings"].append(f"PDF export failed: {e}")
     return report
 
 
+# Back-compat shim for the original entry point
+def render_procedure(data: dict, output, allow_fallback: bool = True) -> dict:
+    return render("procedure", data, output, allow_fallback=allow_fallback)
+
+
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: render_docx.py <input.json> <output.docx> [--no-fallback]",
-              file=sys.stderr)
+    if len(sys.argv) < 4:
+        print("Usage: render_docx.py <doc_type> <input.json> <output.docx> "
+              "[--pdf] [--no-fallback]", file=sys.stderr)
+        print(f"  doc_type one of: {sorted(DOC_TYPES)}", file=sys.stderr)
         sys.exit(64)
-    data = json.loads(Path(sys.argv[1]).read_text())
-    output = sys.argv[2]
+    doc_type = sys.argv[1]
+    data = json.loads(Path(sys.argv[2]).read_text())
+    output = sys.argv[3]
+    pdf = "--pdf" in sys.argv
     allow_fallback = "--no-fallback" not in sys.argv
-    report = render_procedure(data, output, allow_fallback=allow_fallback)
+    report = render(doc_type, data, output, allow_fallback=allow_fallback, pdf=pdf)
     print(json.dumps(report, indent=2))
 
 
