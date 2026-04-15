@@ -1,0 +1,104 @@
+{
+  "procedure_title": "Hot Work Procedure",
+  "doc_number": "ORG-NTD-000010-SAF-PRC-00099",
+  "header_date": "4/15/2026",
+  "revision": "0",
+  "revision_history": [
+    {
+      "rev": "0",
+      "date": "04-15-26",
+      "description": "Issued for Use",
+      "originator": "J. Hernandez",
+      "reviewer": "Director, HSSE",
+      "approver": "VP Operations"
+    }
+  ],
+  "change_log": [
+    {"revision": "0", "description": "Initial issue."}
+  ],
+  "purpose_text": "The purpose of this procedure is to control any activity capable of producing a source of ignition — including welding, cutting, brazing, grinding, soldering, thermal spraying, or use of open flame — performed in or adjacent to areas where flammable or combustible materials may be present.",
+  "scope_text": "This procedure applies to all hot work activities at any facility owned or operated by NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), or any other affiliated entity. It applies to all employees, officers, directors, agents, consultants, contractors, and representatives performing or supporting hot work.",
+  "roles_intro": "Roles and responsibilities for this procedure include the following.",
+  "roles": [
+    {
+      "role": "Managers or Designee",
+      "responsibilities": [
+        "Ensure hot work is performed under a valid Hot Work Permit.",
+        "Review and approve annual revisions of this procedure.",
+        "Allocate resources for Fire Watch training and equipment."
+      ]
+    },
+    {
+      "role": "Facility and Workgroup Supervisors",
+      "responsibilities": [
+        "Issue Hot Work Permits within their area of authority.",
+        "Conduct pre-work walkdowns with the Permit Requester and Fire Watch.",
+        "Suspend work on any condition listed in Section 5."
+      ]
+    },
+    {
+      "role": "Employees",
+      "responsibilities": [
+        "Never commence hot work without a signed Permit in hand.",
+        "Stop the job on any unsafe condition — no consequences for stopping in good faith."
+      ]
+    },
+    {
+      "role": "HSSE Advisors",
+      "responsibilities": [
+        "Provide technical guidance on permit completion and Fire Watch duties.",
+        "Audit active hot work sites at least weekly."
+      ]
+    },
+    {
+      "role": "Contractors and other workers and visitors",
+      "responsibilities": [
+        "Comply with this procedure as if directly employed by NextDecade."
+      ]
+    }
+  ],
+  "ppe_paragraphs": [
+    "All Workforce members engaged in hot work shall wear NextDecade-approved flame-resistant clothing (FRC), hard hats, safety glasses with side shields, and leather work boots. Welders shall additionally wear welding helmets with appropriate shade lenses, gauntlet gloves, and leather sleeves.",
+    "Fire Watches shall wear the same PPE as the hot work operator and carry a 20-lb ABC fire extinguisher within arm's reach throughout the work."
+  ],
+  "procedure_section_title": "Hot Work Procedure",
+  "procedure_intro": "The following steps implement the Hot Work Permit process from request through close-out.",
+  "steps_intro": "The Permit Receiver completes the following:",
+  "steps": [
+    {"step": "1", "description": "Submit the Hot Work Permit form to the Permit Issuer at least 24 hours in advance of the planned activity."},
+    {"step": "2", "description": "Participate in the job-site walkdown with the Permit Issuer and the assigned Fire Watch."},
+    {"step": "3", "description": "Verify all combustibles within 35 feet have been removed or shielded with approved fire-retardant covers."},
+    {"step": "4", "description": "Confirm an Authorized Gas Tester has recorded 0% LEL prior to commencing work."},
+    {"step": "5", "description": "Begin hot work only after the Permit Issuer has signed the Permit and the Fire Watch is in position."},
+    {"step": "6", "description": "Halt work immediately on any stop-work trigger (gas alarm, lost Fire Watch, high wind, facility alarm)."},
+    {"step": "7", "description": "Close out the Permit with the Fire Watch's signed post-work attendance record (minimum 30 minutes)."}
+  ],
+  "recordkeeping_text": "All Hot Work Permit records and Fire Watch logs shall be retained per ORG-NTD-000010-HSE-PRC-00037 — Manual — Procedures, Definitions and Record Keeping Requirements.",
+  "terms_intro": "The following terms are specific to this document.",
+  "definitions": [
+    {"term": "Hot Work", "definition": "Any work that produces a source of ignition — welding, oxy-fuel cutting, plasma cutting, brazing, grinding, soldering, thermal spraying, torch-applied roofing, or use of open flame or spark-producing equipment."},
+    {"term": "Designated Hot Work Area", "definition": "A pre-engineered, fire-safe location specifically constructed for routine hot work where a Permit is not required."},
+    {"term": "Hot Work Permit", "definition": "A written authorization, valid only for a defined location, time, and scope, issued by an authorized Permit Issuer prior to any hot work outside a Designated Hot Work Area."},
+    {"term": "Fire Watch", "definition": "A trained individual whose sole duty during hot work and for not less than 30 minutes after is to detect, suppress, and report fires arising from the work."},
+    {"term": "Authorized Gas Tester", "definition": "A person trained and qualified to operate a calibrated combustible-gas detector and to record atmospheric readings prior to and during hot work."}
+  ],
+  "abbreviations_intro": "The following abbreviations and acronyms are specific to this document.",
+  "abbreviations": [
+    {"abbreviation": "HSSE", "definition": "Health, Safety, Security and Environment"},
+    {"abbreviation": "LEL", "definition": "Lower Explosive Limit"},
+    {"abbreviation": "PPE", "definition": "Personal Protective Equipment"},
+    {"abbreviation": "FRC", "definition": "Flame-Resistant Clothing"},
+    {"abbreviation": "RGLNG", "definition": "Rio Grande LNG"}
+  ],
+  "references": [
+    {"number": "ORG-NTD-000010-HSE-STD-00001", "title": "NextDecade HSSE Standard"},
+    {"number": "ORG-NTD-000010-HSE-STD-00014", "title": "Permit-to-Work Standard"},
+    {"number": "ORG-NTD-000010-HSE-PRC-00021", "title": "Lockout/Tagout Procedure"},
+    {"number": "ORG-NTD-000010-HSE-PRC-00022", "title": "Confined Space Entry Procedure"},
+    {"number": "External", "title": "NFPA 51B — Standard for Fire Prevention During Welding, Cutting, and Other Hot Work (current edition)"}
+  ],
+  "appendices": [
+    {"title": "Hot Work Permit Form", "body": "[Insert Hot Work Permit form template here, or reference form number ORG-NTD-000010-HSE-FRM-00007]"},
+    {"title": "Fire Watch Checklist", "body": "[Insert Fire Watch pre-work and post-work checklist here]"}
+  ]
+}
