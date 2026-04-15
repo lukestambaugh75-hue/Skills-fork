@@ -6,6 +6,38 @@ license: Proprietary. LICENSE.txt has complete terms
 
 # PPTX Skill
 
+## NextDecade decks: brand-family gate (REQUIRED before drafting)
+
+Before generating, editing, or re-rendering a NextDecade presentation, you MUST confirm which of the three brand families the deck is for. The PowerPoint master (`NextDecade-Claude-Project/02-templates/NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx`) carries parallel `ND`, `RG`, and `NCS` layout families — a deck commits to exactly one.
+
+Use the `AskUserQuestion` tool to surface a single-choice picker (this is the "pop-up" — do not proceed on assumptions):
+
+- **Question**: `Which NextDecade brand is this presentation for?`
+- **multiSelect**: `false`
+- **Options**:
+  - `NextDecade Corporate` — parent/corporate deck, uses `ND …` layouts (navy/orange)
+  - `Rio Grande LNG` — LNG facility deck, uses `RG …` layouts (navy/orange)
+  - `NEXT Carbon Solutions (NCS)` — carbon-solutions deck, uses `NCS …` layouts (green-dominant)
+
+Map the answer to the layout prefix and the `"brand"` field of the `render_pptx.py` input JSON:
+
+| User selects | Layout prefix | `brand` JSON value |
+|---|---|---|
+| NextDecade Corporate | `ND ` | `"NextDecade"` |
+| Rio Grande LNG | `RG ` | `"RioGrandeLNG"` |
+| NEXT Carbon Solutions (NCS) | `NCS ` | `"NCS"` |
+
+Shared layouts allowed in every family (no re-asking needed): `Custom Layout`, `1_Custom Layout`, `Public Disclaimer`, `23_Custom Layout`.
+
+Rules:
+
+1. Do not pick a brand family on the user's behalf — even if the topic (e.g., "LNG export permit") strongly suggests one. Ask.
+2. If the user has already explicitly stated the brand earlier in the current conversation, you may skip the pop-up; otherwise ask.
+3. Every content slide you emit must use a layout whose name starts with the chosen prefix followed by a space, or must be one of the four shared layouts above. `render_pptx.py` enforces this and will raise `ValueError` on mismatch.
+4. External decks must still include the `Public Disclaimer` slide verbatim (Forward-Looking Statements) — the brand pick does not change that requirement.
+
+See `NextDecade-Claude-Project/04-scripts/render_pptx.py` for the input-JSON shape and the validator (`_validate_brand_and_layouts`).
+
 ## Quick Reference
 
 | Task | Guide |

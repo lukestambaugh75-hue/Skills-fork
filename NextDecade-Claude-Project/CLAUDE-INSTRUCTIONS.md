@@ -86,6 +86,22 @@ Revision: `0` for initial issue, `1`, `2`, `A`, `B`… for subsequent revisions.
 
 ## Presentations — use `02-templates/NextDecade PowerPoint Master.potx`
 
+### Brand-family gate (REQUIRED — ask before drafting)
+
+The PowerPoint master contains three parallel families of content layouts, one per brand. A deck must commit to exactly one family. **Before you draft any slide, stop and ask the user which brand the deck is for.** Do not guess from context; do not pick a family silently. Present the question as a three-option pick:
+
+1. **NextDecade Corporate** — uses `ND …` layouts
+2. **Rio Grande LNG** — uses `RG …` layouts
+3. **NEXT Carbon Solutions (NCS)** — uses `NCS …` layouts (green-dominant)
+
+Only after the user answers may you proceed. Apply the selection consistently:
+
+- Every content slide must use a layout whose name begins with the chosen prefix (`ND`, `RG`, or `NCS`) followed by a space.
+- Shared layouts are allowed in any family and do not need re-asking: `Custom Layout`, `1_Custom Layout`, `Public Disclaimer`, `23_Custom Layout`.
+- If the user later asks for a slide whose natural home is a different brand (e.g., an NCS-themed stat slide inside an otherwise-ND deck), flag the mismatch and ask again rather than mixing families silently.
+
+### Layouts and typography
+
 - 16:9 widescreen. 50 layouts in four families:
   - **Cover**: "Custom Layout" (has tagline + date placeholder)
   - **Public Disclaimer** (forward-looking statements — include on slide 2 of every external deck)

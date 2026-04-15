@@ -29,6 +29,7 @@ CLI:
 
 Input JSON shape:
   {
+    "brand": "NextDecade" | "RioGrandeLNG" | "NCS",   # REQUIRED — brand-family gate
     "title": "deck title",
     "slides": [
       {"layout": "Custom Layout", "title": "Hot Work Permits", "subtitle": "..."},
@@ -38,6 +39,14 @@ Input JSON shape:
       {"layout": "23_Custom Layout"}
     ]
   }
+
+"brand" determines the allowed layout prefix for non-shared slides:
+  "NextDecade"   -> layouts starting with "ND "
+  "RioGrandeLNG" -> layouts starting with "RG "
+  "NCS"          -> layouts starting with "NCS "
+Shared layouts allowed for every brand: "Custom Layout", "1_Custom Layout",
+"Public Disclaimer", "23_Custom Layout". Any other layout that does not match
+the declared brand prefix raises ValueError before rendering.
 """
 from __future__ import annotations
 import sys, json, shutil, zipfile, subprocess
@@ -47,6 +56,54 @@ MASTER = Path(
     "/home/user/Skills-fork/NextDecade-Claude-Project/02-templates/"
     "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
+
+# Brand-family gate. The PPTX master carries parallel ND / RG / NCS layout
+# families; a deck must commit to exactly one. Callers (Claude Code, Claude
+# Projects, scripted pipelines) are required to surface the three-option pick
+# to the user BEFORE building input JSON, and to record the answer as "brand".
+SHARED_LAYOUTS = {
+    "Custom Layout",
+    "1_Custom Layout",
+    "Public Disclaimer",
+    "23_Custom Layout",
+}
+BRAND_PREFIXES = {
+    "NextDecade": "ND",
+    "RioGrandeLNG": "RG",
+    "NCS": "NCS",
+}
+
+
+def _validate_brand_and_layouts(data: dict) -> str:
+    """Enforce the brand-family gate.
+
+    Requires data["brand"] to be one of BRAND_PREFIXES and every slide layout
+    to be either a shared cover/disclaimer/back-cover layout or to start with
+    the declared brand prefix + " ". Raises ValueError on violation so the
+    pipeline fails loudly instead of silently mixing brand families.
+
+    Returns the layout prefix ("ND" / "RG" / "NCS") on success.
+    """
+    brand = data.get("brand")
+    if brand not in BRAND_PREFIXES:
+        raise ValueError(
+            f"Input JSON must declare 'brand' as one of {sorted(BRAND_PREFIXES)}; "
+            f"got {brand!r}. Ask the user which NextDecade brand the deck is for "
+            f"(NextDecade Corporate / Rio Grande LNG / NEXT Carbon Solutions) "
+            f"before rendering."
+        )
+    prefix = BRAND_PREFIXES[brand]
+    for si, slide in enumerate(data.get("slides", []), start=1):
+        layout = slide.get("layout", "")
+        if layout in SHARED_LAYOUTS:
+            continue
+        if not layout.startswith(prefix + " "):
+            raise ValueError(
+                f"Slide {si}: layout {layout!r} does not match declared brand "
+                f"{brand!r} (expected a {prefix!r}-prefixed layout or one of the "
+                f"shared layouts {sorted(SHARED_LAYOUTS)})."
+            )
+    return prefix
 
 
 def _potx_to_pptx_inplace(path: Path):
@@ -123,6 +180,10 @@ def render(data: dict, output: str | Path, pdf: bool = False) -> dict:
     from pptx import Presentation
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+
+    # Step 0: brand-family gate. Fail fast if the caller didn't ask the user
+    # which brand the deck is for, or picked layouts from the wrong family.
+    _validate_brand_and_layouts(data)
 
     # Step 1: clone and convert
     shutil.copy2(MASTER, output)
