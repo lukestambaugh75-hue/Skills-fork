@@ -1,6 +1,6 @@
 # NextDecade LNG — Extracted Specifications
 
-Source: `uploads/` (5 artifacts across 5 of 20 categories). Generated from a first-pass extraction of the brand PDF, three .docx templates, the .potx slide master, the writing style guide PDF, and the HSSE flash deck. Treat every value as **claude-extracted, not yet human-confirmed** — review and correct before propagation into `/skills/`.
+Source: `NextDecade-Claude-Project/01-brand-references/` and `NextDecade-Claude-Project/03-original-templates/` (5 artifacts). Generated from a first-pass extraction of the brand PDF, three .docx templates, the .potx slide master, the writing style guide PDF, and the HSSE flash deck. Treat every value as **claude-extracted, not yet human-confirmed** — review and correct before propagation into `/skills/`.
 
 ---
 

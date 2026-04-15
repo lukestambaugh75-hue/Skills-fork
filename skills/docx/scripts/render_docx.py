@@ -27,9 +27,9 @@ LINTER = HERE / "lint_docx_template.py"
 
 # Template registry — extend here when adding new document types.
 # `original_template` is used only by the walk-and-replace FALLBACK path; if it
-# is missing (e.g., a template was renamed/swapped in uploads/), the pipeline
-# still works via docxtpl — the fallback just won't be available for that type.
-UPLOADS = Path("/home/user/Skills-fork/uploads/04-document-templates")
+# is missing (e.g., a template was renamed/swapped), the pipeline still works
+# via docxtpl — the fallback just won't be available for that type.
+UPLOADS = Path("/home/user/Skills-fork/NextDecade-Claude-Project/03-original-templates")
 DOC_TYPES = {
     "procedure": {
         "jinja_template": TEMPLATES / "Procedure Template (Jinja).docx",

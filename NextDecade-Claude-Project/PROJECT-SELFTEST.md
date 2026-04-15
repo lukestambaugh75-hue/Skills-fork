@@ -28,7 +28,7 @@ Total time: ~15 minutes for all 15 tests.
 
 | Folder | Count | Files |
 |---|---|---|
-| `01-brand-references/` | 4 | Brand & Style Guidelines 2024.pdf • Writing Style Guide & Resources 2024.pdf • extracted-specs.md • gap-report.md |
+| `01-brand-references/` | 2 (plus `extracted-specs.md` and `gap-report.md` from repo root) | Brand & Style Guidelines 2024.pdf • Writing Style Guide & Resources 2024.pdf |
 | `02-templates/` | 9 (PDF siblings of the PPTX/POTX included) | Procedure Template (Jinja).docx • Standard Template (Jinja).docx • Guidance Template (Jinja).docx • HSSE Flash Template.pdf • NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf • procedure_schema.json • standard_schema.json • guidance_schema.json • README.md |
 | `03-original-templates/` | 3 | Guidance Template.docx • Standard Template.docx • NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx |
 | `05-samples/` | 11 | Hot Work All-Hands Email.docx • Hot Work Permit Tracker.xlsx • Hot Work Procedure (docxtpl).docx • Hot Work Procedure (docxtpl).pdf • Hot Work Safety Guidance.docx • Hot Work Safety Guidance.pdf • Hot Work Safety Moment.pdf • Hot Work Safety Standard.docx • Hot Work Safety Standard.pdf • input-example.json • README.md |

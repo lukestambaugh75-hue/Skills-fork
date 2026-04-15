@@ -3,10 +3,10 @@
 **Queued from session**: `session_01SNa2SVk5ioaLKtfafmA3x4` (2026-04-14)
 
 **Target files**:
-- `uploads/05-presentation-templates/NextDecade Power Point Slide Master_Final_Oct 2025.potx`
+- `NextDecade-Claude-Project/02-templates/NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx`
 - `skills/pptx/scripts/render_pptx.py`
 - `skills/pptx/scripts/lint_pptx_master.py`
-- `samples/safety-hot-work/Hot Work Safety Moment.pptx` (regenerate to demonstrate)
+- `NextDecade-Claude-Project/05-samples/Hot Work Safety Moment.pptx` (regenerate to demonstrate)
 
 ## Why
 
@@ -59,7 +59,7 @@ Brand treatment for all:
    - Add the five new layout names to `REQUIRED_LAYOUTS`
    - Add a check that each has the expected placeholder indices (so if a layout gets renamed or placeholders deleted in Word, we catch it before render)
 
-4. **Build a demo deck** — regenerate `samples/safety-hot-work/Hot Work Safety Moment.pptx` with one slide per new layout:
+4. **Build a demo deck** — regenerate `NextDecade-Claude-Project/05-samples/Hot Work Safety Moment.pptx` with one slide per new layout:
    - 3-step: Permit → Fire Watch → Close-out
    - Quadrant: frequency × severity of hot-work risks
    - Timeline: revision history milestones
@@ -82,4 +82,4 @@ Recommended for next chat: ask the user whether they'd like to build the layouts
 - `lint_pptx_master.py` returns exit 0 with all 5 new layouts present and validated
 - `render_pptx.py` renders a slide for each new layout when given the matching schema
 - Demo deck opens in PowerPoint with all 5 slides rendering correctly
-- Samples committed to `samples/safety-hot-work/` showing the modern graphics in context
+- Samples committed to `NextDecade-Claude-Project/05-samples/` showing the modern graphics in context

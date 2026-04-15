@@ -1,66 +1,44 @@
 # NextDecade LNG Enterprise Skills Template
 
-**Status:** Scaffolding — awaiting upload intake for personalization.
+This repository is a fork of Anthropic's public skills repo, customized for NextDecade LNG use. Its purpose is to teach Claude how to produce on-brand, on-voice, correctly-classified, legally-compliant NextDecade content by default for Word documents, PowerPoint decks, Excel reports, internal and external communications, regulatory filings, investor material, HSE content, and ESG disclosures.
 
-This repository is being built as the **NextDecade LNG enterprise skills library**. It is a fork of Anthropic's public skills repo, being customized for NDLNG use and eventual distribution inside the organization as the authoritative template library.
+## How the repo is organized
 
-## What this repo will become
+| Path | What's there | Who uses it |
+|---|---|---|
+| `NextDecade-Claude-Project/` | Self-contained bundle for Claude Projects — brand PDFs, Jinja-tagged templates, original templates, render scripts, Hot Work sample set, and `START-HERE.md` / `CLAUDE-INSTRUCTIONS.md` / `PROJECT-SELFTEST.md`. | Upload these files into a Claude Project on claude.ai to draft NextDecade documents via chat. |
+| `extracted-specs.md` | Claude-readable distillation of NextDecade brand specs (colors, fonts, voice, classification, boilerplate). | Upload alongside the bundle; referenced by the validation samples. |
+| `gap-report.md` | What's still missing from the brand / governance extract. | Upload alongside the bundle. |
+| `skills/` | The skill set Claude Code loads — `docx`, `pptx`, `xlsx`, `pdf`, plus supporting skills. The `docx` and `pptx` skills are wired to the bundle's templates and master. | Claude Code users and the Claude API. |
+| `samples/document-types-validation/` | One sample per major NextDecade artifact type, with `_build/` scripts and `_inputs/` JSONs — breadth sweep for validating the skill set. | Reference output for regression / QA. |
 
-A set of skills that enforce NextDecade LNG's:
-- Brand identity (colors, typography, logos, imagery)
-- Document standards (memos, reports, SOPs, MSAs, board packets)
-- Presentation standards (investor, board, earnings, community, safety)
-- Written voice & tone
-- Legal boilerplate (forward-looking, safe harbor, Reg FD, confidentiality)
-- Document classification (Public / Internal / Confidential / Restricted)
-- Industry-specific conventions (FERC, DOE, SEC, HSE, ESG, community)
-- File naming & versioning discipline
-- Data visualization standards
-- Email signatures & executive bio formats
+## Two ways to use this repo
 
-## Current state
+### A. Claude Projects (web, no code)
 
-| Component | Status |
-|-----------|--------|
-| Upload intake scaffolding | Built — see `/uploads/` |
-| Personalization workflow skill | Built — see `/skills/enterprise-personalization/` |
-| Brand personalization | Pending — awaiting uploads in `/uploads/01-brand/` and `/uploads/02-typography/` |
-| Document personalization | Pending — awaiting uploads in `/uploads/04-document-templates/` |
-| Presentation personalization | Pending — awaiting uploads in `/uploads/05-presentation-templates/` |
-| Comms personalization | Pending — awaiting uploads in `/uploads/09-sample-communications/` + `/uploads/10-style-voice-guide/` |
-| Legal boilerplate skill | Not yet created — awaiting uploads in `/uploads/11-legal-boilerplate/` |
-| Classification skill | Not yet created — awaiting uploads in `/uploads/18-classification-rules/` |
-| Industry skills (SEC/FERC/HSE/ESG/community) | Not yet created — awaiting respective uploads |
+Upload the contents of `NextDecade-Claude-Project/` plus the two root-level spec files into a Claude Project. Follow `NextDecade-Claude-Project/START-HERE.md`. Claude drafts procedures, standards, guidance, decks, emails, and trackers in chat; you download the output.
 
-## How to contribute to the build-out
+### B. Claude Code / Claude API (automated generation)
 
-1. Read `/uploads/README.md` for the full intake workflow.
-2. Drop artifacts into the appropriate `/uploads/XX-*/` subfolder. Each has its own README explaining what's needed.
-3. When an initial batch is in place, trigger the `enterprise-personalization` skill to run gap analysis and extraction.
-4. Review extracted specs before they propagate into skills.
-5. Approve diffs before anything is committed.
+Use the skills in `skills/` directly. The `docx` and `pptx` skills render governance documents and branded decks from structured JSON input via docxtpl and python-pptx. Templates live in `NextDecade-Claude-Project/02-templates/` (Jinja-tagged) and `03-original-templates/` (untagged source); the render scripts under `skills/docx/scripts/` and `skills/pptx/scripts/` point at those paths.
 
-## How to use once complete
+## Brand standards baked in
 
-Once populated and personalized, any NextDecade LNG employee or agent using this skills library will produce on-brand, on-voice, correctly-classified, legally-compliant output by default for:
-- Any Word document
-- Any PowerPoint deck
-- Any Excel report
-- Any internal or external communication
-- Any regulatory filing draft
-- Any investor / IR material
-- Any community / stakeholder comms
-- Any HSE / safety content
-- Any ESG / sustainability disclosure
+- Primary navy `#002060`, primary orange `#FC7134`, primary green `#00B050` (NCS)
+- Segoe UI throughout
+- Classification footer defaults to Confidential/Proprietary
+- Forward-Looking Statements boilerplate available from the PPTX master's Public Disclaimer layout
+- Three-brand family: NextDecade / Rio Grande LNG / NEXT Carbon Solutions
 
-## Distribution model
+## Updating the bundle
 
-This repo is intended to become an internal template library. Expected distribution:
-- Clone / fork inside NDLNG
-- Loaded as a Claude Code plugin
-- Used via the Claude API for automated content generation
-- Used by humans as reference templates
+When brand standards change (new logo, new color, new tagline), update the authoritative files in place:
+- Templates in `NextDecade-Claude-Project/02-templates/` and `03-original-templates/`
+- Brand PDFs in `NextDecade-Claude-Project/01-brand-references/`
+- Specs in `extracted-specs.md` and `gap-report.md`
+
+Re-run `skills/docx/scripts/build_procedure_jinja.py` if the source Procedure template changes, and `skills/pptx/scripts/lint_pptx_master.py` after any edit to the .potx master.
 
 ## Upstream origin
 
-This is a fork of `anthropics/skills`. Generic skills (`algorithmic-art`, `canvas-design`, `slack-gif-creator`, etc.) that are not relevant to enterprise comms may be pruned during personalization. Mechanical skills (`docx`, `pptx`, `xlsx`, `pdf`) will be kept and have NDLNG defaults baked in.
+Fork of `anthropics/skills`. Mechanical skills (`docx`, `pptx`, `xlsx`, `pdf`) are kept with NDLNG defaults baked in. Generic creative skills from upstream may be pruned as the library matures.

@@ -19,8 +19,8 @@ import sys, json, zipfile, re
 from pathlib import Path
 
 DEFAULT_MASTER = Path(
-    "/home/user/Skills-fork/uploads/05-presentation-templates/"
-    "NextDecade Power Point Slide Master_Final_Oct 2025.potx"
+    "/home/user/Skills-fork/NextDecade-Claude-Project/02-templates/"
+    "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
 
 REQUIRED_LAYOUTS = [

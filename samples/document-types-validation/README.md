@@ -113,9 +113,9 @@ python samples/document-types-validation/_build/build_comms.py      samples/docu
 ## Known limitations
 
 - **PDF renders not included.** LibreOffice `soffice` failed to load files in the build sandbox (`javaldx` warning). You can run `soffice --headless --convert-to pdf <file.docx>` locally.
-- **Letterhead.** No real NDLNG letterhead logo file is in `uploads/`; the customer letter and fact sheet use a text-rendered brand header in place of a logo image. Drop the logo PNG into `_build/` and update `nextdecade_brand.py` to `inline_image(...)` at top of page when the real logo is available.
+- **Letterhead.** No standalone NDLNG letterhead logo file is committed to the repo; the customer letter and fact sheet use a text-rendered brand header in place of a logo image. Drop the logo PNG into `_build/` and update `nextdecade_brand.py` to `inline_image(...)` at top of page when the real logo is available.
 - **Governance docx theme.** Templates ship with Aptos/Times New Roman theme defaults (extracted-specs.md inconsistency #4). Body text is force-overridden at render time to Segoe UI; if the native Office theme drift becomes a concern, swap the theme XML in the templates (see `.claude/plans/` for backlog).
-- **Email signature artifacts.** Folder `uploads/20-org-signatures/` is empty, so the signature block in the board memo and customer letter uses a text-rendered approximation (name in navy, title in black). Replace when real signature assets land.
+- **Email signature artifacts.** No real NDLNG signature assets are committed to the repo, so the signature block in the board memo and customer letter uses a text-rendered approximation (name in navy, title in black). Replace when real signature assets land.
 
 ## What this set does NOT validate (intentionally)
 
