@@ -6,13 +6,17 @@ Templates here are **edit-in-Word, render-via-Python**. Markers like `{{ purpose
 
 | File | Purpose |
 |---|---|
-| `Procedure Template (Jinja).docx` | Main procedure template with 32 Jinja markers. |
+| `Procedure Template (Jinja).docx` | Procedure template, derived from `uploads/04-document-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx`. |
 | `procedure_schema.json` | Schema for the input dict — required and optional markers, field types, item shapes. |
+| `Standard Template (Jinja).docx` | Standard template (legacy layout — Standard Template.docx). |
+| `standard_schema.json` | Schema for Standard inputs. |
+| `Guidance Template (Jinja).docx` | Guidance template (legacy layout — Guidance Template.docx). |
+| `guidance_schema.json` | Schema for Guidance inputs. |
 
 ## Render pipeline
 
 ```bash
-python ../scripts/render_docx.py input.json output.docx
+python ../scripts/render_docx.py procedure input.json output.docx [--pdf]
 ```
 
 Pipeline does: lint → docxtpl → fallback to walk-and-replace if template damaged.
@@ -27,11 +31,20 @@ python ../scripts/lint_docx_template.py "Procedure Template (Jinja).docx" proced
 
 Exit code 0 = clean. Exit 2 = warnings (render still works). Exit 3 = errors (render falls back to walk-and-replace).
 
+## docxtpl marker patterns used in `Procedure Template (Jinja).docx`
+
+| Pattern | Where used | Notes |
+|---|---|---|
+| `{{ field }}` | Single-paragraph text fields (purpose, scope, header date, etc.). | docxtpl substitutes the string in place. |
+| `{%tr for x in xs %}` ... `{%tr endfor %}` | Row-loop tables (revision history, change log, roles, steps, definitions, abbreviations, references). | The two directives live in **separate rows** above and below the data row. The directive rows are removed at render time; the data row repeats per iteration. |
+| `{%p for x in xs %}` ... `{%p endfor %}` | Variable-paragraph blocks (PPE paragraphs, appendices, responsibilities cell within roles). | The two directives live on **separate paragraphs** above and below the body paragraphs. The directive paragraphs are removed; the body paragraphs repeat per iteration. |
+
 ## Common Word edits that break markers
 
 1. **Autocorrect smart-quoting** — Word turns `{{purpose}}` into `{{purpose"}}`. Disable autocorrect when typing markers, or paste them from a plain-text editor.
 2. **Run splits** — Word may split a marker across multiple text runs after editing. Visible as: marker appears in two pieces in the XML even though it looks fine on screen. Fix: delete the marker entirely, retype it in one motion, save.
 3. **Marker deletion** — A non-technical author sees `{{ scope_text }}`, thinks it's junk, deletes it. Linter catches this against the schema.
+4. **Putting `{%tr for%}` and `{%tr endfor %}` in the same row** — docxtpl silently drops the opening tag, leaving an unbalanced template. Always keep them on separate rows.
 
 ## Adding a new field
 
@@ -49,4 +62,4 @@ Exit code 0 = clean. Exit 2 = warnings (render still works). Exit 3 = errors (re
 
 ## Known divergences between docxtpl and walk-and-replace fallback
 
-- **Revision History table**: docxtpl produces exactly N rows for N revisions. Walk-and-replace leaves the template's 26 rows in place (with later rows blank). Both are valid; docxtpl is cleaner. If you need the walk-and-replace path to also trim, add a row-cleanup step in `render_via_walk_and_replace`.
+Both render paths produce structurally equivalent output for the new procedure schema. The walk-and-replace fallback also strips the source template's "Sample Styles" section so the rendered procedure matches the docxtpl output. The fallback is invoked when the Jinja template is damaged; the rendered output still uses the brand chrome, but the lint report tells you to fix the Jinja template to restore the fast path.
