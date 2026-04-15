@@ -25,27 +25,41 @@ HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE.parent / "templates"
 LINTER = HERE / "lint_docx_template.py"
 
-# Template registry — extend here when adding new document types
+# Template registry — extend here when adding new document types.
+# `original_template` is used only by the walk-and-replace FALLBACK path; if it
+# is missing (e.g., a template was renamed/swapped in uploads/), the pipeline
+# still works via docxtpl — the fallback just won't be available for that type.
+UPLOADS = Path("/home/user/Skills-fork/uploads/04-document-templates")
 DOC_TYPES = {
     "procedure": {
         "jinja_template": TEMPLATES / "Procedure Template (Jinja).docx",
-        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Procedure Template.docx"),
+        # Accept either the legacy name or the new Rev-1 Blank template.
+        "original_template_candidates": [
+            UPLOADS / "Procedure Template.docx",
+            UPLOADS / "NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx",
+        ],
         "schema": TEMPLATES / "procedure_schema.json",
         "fallback": "walk_replace_procedure",
     },
     "standard": {
         "jinja_template": TEMPLATES / "Standard Template (Jinja).docx",
-        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Standard Template.docx"),
+        "original_template_candidates": [UPLOADS / "Standard Template.docx"],
         "schema": TEMPLATES / "standard_schema.json",
         "fallback": "walk_replace_standard",
     },
     "guidance": {
         "jinja_template": TEMPLATES / "Guidance Template (Jinja).docx",
-        "original_template": Path("/home/user/Skills-fork/uploads/04-document-templates/Guidance Template.docx"),
+        "original_template_candidates": [UPLOADS / "Guidance Template.docx"],
         "schema": TEMPLATES / "guidance_schema.json",
         "fallback": "walk_replace_guidance",
     },
 }
+
+def _resolve_original(doc_type: str) -> Path | None:
+    for cand in DOC_TYPES[doc_type]["original_template_candidates"]:
+        if cand.exists():
+            return cand
+    return None
 
 
 def _strict_env():
@@ -185,7 +199,8 @@ def _wr_fill_tables(doc, table_plans, _set):
 
 
 def walk_replace_procedure(data: dict, output: Path):
-    original = DOC_TYPES["procedure"]["original_template"]
+    original = _resolve_original("procedure")
+    if original is None: raise RuntimeError("No procedure template available for walk-and-replace fallback.")
     doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
     _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
     _fill_after(_h1("SCOPE"),                    data["scope_text"])
@@ -198,7 +213,8 @@ def walk_replace_procedure(data: dict, output: Path):
 
 
 def walk_replace_standard(data: dict, output: Path):
-    original = DOC_TYPES["standard"]["original_template"]
+    original = _resolve_original("standard")
+    if original is None: raise RuntimeError("No standard template available for walk-and-replace fallback.")
     doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
     _fill_after(_h1("INTRODUCTION"),             data["introduction_text"])
     _fill_after(_h1("SCOPE"),                    data["scope_text"])
@@ -211,7 +227,8 @@ def walk_replace_standard(data: dict, output: Path):
 
 
 def walk_replace_guidance(data: dict, output: Path):
-    original = DOC_TYPES["guidance"]["original_template"]
+    original = _resolve_original("guidance")
+    if original is None: raise RuntimeError("No guidance template available for walk-and-replace fallback.")
     doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
     _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
     _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
