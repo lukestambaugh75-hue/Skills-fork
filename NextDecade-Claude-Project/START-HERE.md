@@ -4,9 +4,11 @@ This folder has everything you need to upload to a Claude Project so Claude can 
 
 ## What to do (3 steps)
 
-1. **Download this whole folder** (ZIP or just the folder — both work).
-2. **Create a new Claude Project** at [claude.ai](https://claude.ai) → "+ New project".
-3. **Upload all the files** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders. In the Project's *Custom Instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
+> **Prerequisite:** Claude Projects requires a Claude **Pro, Team, or Enterprise** plan. It is not available on the Free plan.
+
+1. **Download the ZIP and unzip locally** — Claude web uploads individual files, not folders or ZIPs.
+2. **Create a new Claude Project** at [claude.ai](https://claude.ai) → sidebar → **Projects** → **Create project**.
+3. **Upload all the files individually** from the `01-brand-references/`, `02-templates/`, `03-original-templates/`, and `05-samples/` subfolders (drag-select the contents of each folder into the project's Add content dialog — the web UI does not accept a folder or ZIP as a unit). In the Project's *Custom instructions* box, paste the contents of `CLAUDE-INSTRUCTIONS.md`.
 
 That's it. Claude now knows how to draft on-brand NextDecade content.
 
