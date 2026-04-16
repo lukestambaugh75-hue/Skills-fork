@@ -127,6 +127,39 @@ def _post_render_cover_fixup(output: Path, data: dict, doc_type: str) -> list[st
     return patches
 
 
+def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
+    """Remove known template scaffolding from the rendered .docx.
+
+    Procedure: removes "Use the following for notes, cautions, and warnings."
+    paragraph and the Note/Caution/Warning demo table that follows.
+    """
+    from docx import Document
+
+    doc = Document(str(output))
+    changed = False
+
+    if doc_type == "procedure":
+        for p in list(doc.paragraphs):
+            if "Use the following for notes, cautions, and warnings" in p.text:
+                p._element.getparent().remove(p._element)
+                changed = True
+
+        for t in list(doc.tables):
+            cell_texts = []
+            for row in t.rows:
+                for cell in row.cells:
+                    cell_texts.append(cell.text.strip())
+            all_text = " ".join(cell_texts)
+            if ("Note:" in all_text and "Caution:" in all_text
+                    and "Warning:" in all_text
+                    and "alerts users" in all_text):
+                t._element.getparent().remove(t._element)
+                changed = True
+
+    if changed:
+        doc.save(str(output))
+
+
 # ---------------------------------------------------------------------------
 # Walk-and-replace fallback (per-doc-type)
 # ---------------------------------------------------------------------------
@@ -820,13 +853,19 @@ def render(doc_type: str, data: dict, output: str | Path,
                 f"Issues: {lint_report.get('issues')}"
             )
 
-    # Step 2.5: post-render cover-page fixup (Standard/Guidance text boxes + headers)
+    # Step 2.5a: post-render cover-page fixup (Standard/Guidance text boxes + headers)
     try:
         cover_patches = _post_render_cover_fixup(output, data, doc_type)
         if cover_patches:
             report["cover_patches"] = cover_patches
     except Exception as e:
         report["warnings"].append(f"Cover-page fixup failed: {e}")
+
+    # Step 2.5b: remove template scaffolding (applies to all doc types)
+    try:
+        _remove_template_scaffolding(output, doc_type)
+    except Exception as e:
+        report["warnings"].append(f"Scaffolding cleanup failed: {e}")
 
     # Step 3: optional PDF
     if pdf:
