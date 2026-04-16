@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
-# NextDecade Enterprise Skills — Full-Stack Smoke Test
+# NextDecade Enterprise Skills — Full-Stack Smoke Test  (v2 — 2026-04-16)
 # =============================================================================
 #
 # PURPOSE: Validate the entire Skills-fork repository is uploadable and
 # functional for a fresh enterprise rollout. Tests: file integrity, JSON/YAML
 # validity, Python syntax, schema alignment, template availability, hardcoded
-# path portability, binary bloat detection, and skill manifest completeness.
+# path portability, binary bloat detection, skill manifest completeness,
+# branding-vs-formatting override safety, schema cross-validation, render
+# pipeline dry-run, and CLAUDE-INSTRUCTIONS structural coverage.
 #
 # USAGE:
 #   chmod +x smoke-test-enterprise.sh
@@ -35,10 +37,41 @@ PASS=0
 FAIL=0
 WARN=0
 
-pass()  { PASS=$((PASS + 1)); echo "  PASS: $1"; }
-fail()  { FAIL=$((FAIL + 1)); echo "  FAIL: $1"; }
-warn()  { WARN=$((WARN + 1)); echo "  WARN: $1"; }
+# Counter file — works around the bash pipe-subshell problem where
+# `cmd | while read ...` runs the loop in a subshell and counter
+# increments are lost when the subshell exits.
+_COUNTER_FILE=$(mktemp)
+echo "0 0 0" > "$_COUNTER_FILE"
+trap 'rm -f "$_COUNTER_FILE"' EXIT
+
+pass() {
+    PASS=$((PASS + 1))
+    echo "  PASS: $1"
+    echo "P" >> "$_COUNTER_FILE"
+}
+fail() {
+    FAIL=$((FAIL + 1))
+    echo "  FAIL: $1"
+    echo "F" >> "$_COUNTER_FILE"
+}
+warn() {
+    WARN=$((WARN + 1))
+    echo "  WARN: $1"
+    echo "W" >> "$_COUNTER_FILE"
+}
 section() { echo ""; echo "=== $1 ==="; }
+
+# _reconcile_counters: call after any pipeline section to pick up
+# pass/fail/warn calls that happened inside a pipe subshell.
+_reconcile_counters() {
+    PASS=$(grep -c '^P$' "$_COUNTER_FILE" 2>/dev/null || true)
+    FAIL=$(grep -c '^F$' "$_COUNTER_FILE" 2>/dev/null || true)
+    WARN=$(grep -c '^W$' "$_COUNTER_FILE" 2>/dev/null || true)
+    # Ensure numeric (strip trailing whitespace/newlines)
+    PASS=${PASS//[^0-9]/}; PASS=${PASS:-0}
+    FAIL=${FAIL//[^0-9]/}; FAIL=${FAIL:-0}
+    WARN=${WARN//[^0-9]/}; WARN=${WARN:-0}
+}
 
 # =============================================================================
 section "1. Repository structure — required directories exist"
@@ -586,16 +619,467 @@ else
 fi
 
 # =============================================================================
+section "21. Branding-vs-formatting override safety"
+# =============================================================================
+# CRITICAL CHECK: Verify that brand-guidelines SKILL.md contains ZERO document
+# structure rules (section ordering, heading numbers, table layouts). If it
+# does, branding could silently override Procedure/Standard/Guidance formatting.
+
+echo "  Checking brand-guidelines SKILL.md for structural directives..."
+BRAND_SKILL="skills/brand-guidelines/SKILL.md"
+if [ -f "$BRAND_SKILL" ]; then
+    # These patterns indicate document-structure rules that belong in docx/SKILL.md, NOT brand-guidelines
+    STRUCT_LEAKS=0
+    for pattern in \
+        "1\.0 Purpose" \
+        "2\.0 Scope" \
+        "3\.0 Roles" \
+        "5\.0 Procedure" \
+        "INTRODUCTION.*SCOPE.*GOVERNANCE" \
+        "PURPOSE.*GUIDELINE.*APPROVAL" \
+        "section_title" \
+        "revision_history" \
+        "Heading 1.*Heading 2" \
+        "RGLNG 1.*Hdg1" \
+        "procedure_schema" \
+        "standard_schema" \
+        "guidance_schema"; do
+        if grep -qiP "$pattern" "$BRAND_SKILL" 2>/dev/null; then
+            fail "brand-guidelines leaks document structure: matches /$pattern/"
+            STRUCT_LEAKS=$((STRUCT_LEAKS + 1))
+        fi
+    done
+    if [ "$STRUCT_LEAKS" -eq 0 ]; then
+        pass "brand-guidelines contains NO document-structure rules (clean separation)"
+    fi
+
+    # Verify it DOES contain the branding items it should
+    for brand_item in "#002060" "#FC7134" "#00B050" "Segoe UI" "NextDecade Corporation"; do
+        if grep -q "$brand_item" "$BRAND_SKILL" 2>/dev/null; then
+            pass "brand-guidelines has expected brand constant: $brand_item"
+        else
+            fail "brand-guidelines missing brand constant: $brand_item"
+        fi
+    done
+else
+    fail "brand-guidelines SKILL.md not found"
+fi
+
+# =============================================================================
+section "22. docx SKILL.md — contains structure rules (must NOT leak brand overrides)"
+# =============================================================================
+# The docx skill should define document structure but should NOT redefine brand
+# colors/fonts in a way that conflicts with brand-guidelines.
+
+DOCX_SKILL="skills/docx/SKILL.md"
+if [ -f "$DOCX_SKILL" ]; then
+    # Check it has the structural rules it needs
+    STRUCT_HITS=0
+    for structural_term in "procedure_title" "standard_schema" "guidance_schema" \
+                           "render_docx.py" "Revision History" "Cover page"; do
+        if grep -q "$structural_term" "$DOCX_SKILL" 2>/dev/null; then
+            STRUCT_HITS=$((STRUCT_HITS + 1))
+        fi
+    done
+    if [ "$STRUCT_HITS" -ge 4 ]; then
+        pass "docx SKILL.md has document-structure rules ($STRUCT_HITS/6 key terms)"
+    else
+        warn "docx SKILL.md may be missing structure rules (only $STRUCT_HITS/6 key terms found)"
+    fi
+
+    # Check for conflicting brand color definitions that differ from brand-guidelines
+    python3 -c "
+import re, sys
+docx = open('$DOCX_SKILL').read()
+brand = open('$BRAND_SKILL').read() if __import__('os').path.exists('$BRAND_SKILL') else ''
+# Extract hex colors from both files
+docx_colors = set(re.findall(r'#[0-9A-Fa-f]{6}', docx))
+brand_colors = set(re.findall(r'#[0-9A-Fa-f]{6}', brand))
+# Colors in docx that are NOT in brand-guidelines could be conflicts
+docx_only = docx_colors - brand_colors
+if docx_only:
+    # Filter out common non-brand hex (e.g. XML namespace fragments)
+    real_colors = {c for c in docx_only if not c.startswith('#xmlns')}
+    if real_colors:
+        print(f'WARN:docx SKILL.md defines colors not in brand-guidelines: {real_colors}')
+    else:
+        print('OK:no conflicting colors')
+else:
+    print('OK:all colors in docx SKILL.md also appear in brand-guidelines (no conflict)')
+" 2>&1 | while IFS= read -r line; do
+        case "$line" in
+            OK:*)   pass "${line#OK:}" ;;
+            WARN:*) warn "${line#WARN:}" ;;
+            FAIL:*) fail "${line#FAIL:}" ;;
+        esac
+    done
+else
+    fail "docx SKILL.md not found"
+fi
+
+# =============================================================================
+section "23. CLAUDE-INSTRUCTIONS.md — structure rules match schema section order"
+# =============================================================================
+# Verify the governance document section ordering in CLAUDE-INSTRUCTIONS.md
+# matches the schemas. If they diverge, Claude Projects will produce docs
+# with wrong section order.
+
+INSTRUCTIONS="NextDecade-Claude-Project/CLAUDE-INSTRUCTIONS.md"
+if [ -f "$INSTRUCTIONS" ]; then
+    # Procedure structure check: must mention Cover, Revision History, Purpose,
+    # Scope, Roles, Safety/PPE, Procedure body, Record Keeping, Definitions, References, Appendix
+    PROC_SECTIONS=0
+    for section_marker in "Cover page" "Revision History" "Purpose" "Scope" \
+                          "Roles and Responsibilities" "Safety" "PPE" \
+                          "Procedure" "Record Keeping" "Definitions" "References" "Appendix"; do
+        if grep -qi "$section_marker" "$INSTRUCTIONS" 2>/dev/null; then
+            PROC_SECTIONS=$((PROC_SECTIONS + 1))
+        fi
+    done
+    if [ "$PROC_SECTIONS" -ge 10 ]; then
+        pass "CLAUDE-INSTRUCTIONS covers Procedure structure ($PROC_SECTIONS/12 sections)"
+    else
+        fail "CLAUDE-INSTRUCTIONS missing Procedure sections (only $PROC_SECTIONS/12)"
+    fi
+
+    # Standard structure check
+    STD_SECTIONS=0
+    for section_marker in "INTRODUCTION" "SCOPE" "INTEGRATED GOVERNANCE" "DEFINITIONS" \
+                          "REFERENCES" "EXCEPTION REQUEST" "CONTINUOUS IMPROVEMENT" \
+                          "OWNERSHIP" "APPROVAL" "REVISION HISTORY"; do
+        if grep -q "$section_marker" "$INSTRUCTIONS" 2>/dev/null; then
+            STD_SECTIONS=$((STD_SECTIONS + 1))
+        fi
+    done
+    if [ "$STD_SECTIONS" -ge 8 ]; then
+        pass "CLAUDE-INSTRUCTIONS covers Standard structure ($STD_SECTIONS/10 sections)"
+    else
+        fail "CLAUDE-INSTRUCTIONS missing Standard sections (only $STD_SECTIONS/10)"
+    fi
+
+    # Guidance structure check
+    GDN_SECTIONS=0
+    for section_marker in "PURPOSE" "INTEGRATED GOVERNANCE" "GUIDELINE" \
+                          "OWNERSHIP" "APPROVAL" "REVISION HISTORY"; do
+        if grep -q "$section_marker" "$INSTRUCTIONS" 2>/dev/null; then
+            GDN_SECTIONS=$((GDN_SECTIONS + 1))
+        fi
+    done
+    if [ "$GDN_SECTIONS" -ge 5 ]; then
+        pass "CLAUDE-INSTRUCTIONS covers Guidance structure ($GDN_SECTIONS/6 sections)"
+    else
+        fail "CLAUDE-INSTRUCTIONS missing Guidance sections (only $GDN_SECTIONS/6)"
+    fi
+
+    # Check that CLAUDE-INSTRUCTIONS defers to templates (not re-defining structure from scratch)
+    if grep -qi "use the templates in" "$INSTRUCTIONS" 2>/dev/null; then
+        pass "CLAUDE-INSTRUCTIONS defers to templates ('use the templates in')"
+    else
+        warn "CLAUDE-INSTRUCTIONS may not explicitly defer to templates for rendering"
+    fi
+else
+    fail "CLAUDE-INSTRUCTIONS.md not found"
+fi
+
+# =============================================================================
+section "24. Schema cross-validation — Procedure vs Standard vs Guidance"
+# =============================================================================
+# Verify schemas don't accidentally share field names with incompatible types
+# (e.g., both define 'definitions' but with different column structures).
+
+python3 -c "
+import json, sys
+
+proc = json.load(open('skills/docx/templates/procedure_schema.json'))
+std  = json.load(open('skills/docx/templates/standard_schema.json'))
+gdn  = json.load(open('skills/docx/templates/guidance_schema.json'))
+
+proc_fields = set(proc.get('required_markers', []) + proc.get('optional_markers', []))
+std_fields  = set(std.get('required_markers', []) + std.get('optional_markers', []))
+gdn_fields  = set(gdn.get('required_markers', []) + gdn.get('optional_markers', []))
+
+# Fields shared between schemas
+proc_std = proc_fields & std_fields
+proc_gdn = proc_fields & gdn_fields
+std_gdn  = std_fields & gdn_fields
+
+if proc_std:
+    # Check if shared fields have compatible shapes
+    for f in sorted(proc_std):
+        p_def = proc.get('fields', {}).get(f, {})
+        s_def = std.get('fields', {}).get(f, {})
+        p_type = p_def.get('type', 'unknown')
+        s_type = s_def.get('type', 'unknown')
+        if p_type != s_type and p_type != 'unknown' and s_type != 'unknown':
+            print(f'WARN:shared field \"{f}\" has different types: procedure={p_type}, standard={s_type}')
+        else:
+            print(f'OK:shared field \"{f}\" compatible between procedure and standard')
+
+if std_gdn:
+    for f in sorted(std_gdn):
+        s_def = std.get('fields', {}).get(f, {})
+        g_def = gdn.get('fields', {}).get(f, {})
+        s_type = s_def.get('type', 'unknown')
+        g_type = g_def.get('type', 'unknown')
+        if s_type != g_type and s_type != 'unknown' and g_type != 'unknown':
+            print(f'WARN:shared field \"{f}\" has different types: standard={s_type}, guidance={g_type}')
+        else:
+            print(f'OK:shared field \"{f}\" compatible between standard and guidance')
+
+# Verify each schema has a version field (schema_version or version)
+for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
+    ver = schema.get('schema_version', schema.get('version', 'MISSING'))
+    if ver == 'MISSING':
+        print(f'FAIL:{name} schema missing schema_version field')
+    else:
+        print(f'OK:{name} schema schema_version={ver}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
+section "25. Render pipeline dry-run — import check with dependencies"
+# =============================================================================
+# Try to import render_docx.py and verify the DOC_TYPES registry is populated.
+# This catches missing template files or broken import chains at parse time.
+
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_docx', 'skills/docx/scripts/render_docx.py')
+try:
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    doc_types = getattr(mod, 'DOC_TYPES', {})
+    if not doc_types:
+        print('FAIL:DOC_TYPES registry is empty after import')
+    else:
+        for dt, cfg in doc_types.items():
+            jinja = cfg.get('jinja_template')
+            schema = cfg.get('schema')
+            if jinja and jinja.exists():
+                print(f'OK:{dt} jinja template found: {jinja.name}')
+            else:
+                print(f'FAIL:{dt} jinja template missing: {jinja}')
+            if schema and schema.exists():
+                print(f'OK:{dt} schema found: {schema.name}')
+            else:
+                print(f'FAIL:{dt} schema missing: {schema}')
+            # Check fallback function exists
+            fb_name = cfg.get('fallback', '')
+            fb_fns = getattr(mod, 'FALLBACK_FNS', {})
+            if fb_name in fb_fns:
+                print(f'OK:{dt} fallback function registered: {fb_name}')
+            else:
+                print(f'FAIL:{dt} fallback function missing: {fb_name}')
+except Exception as e:
+    print(f'FAIL:render_docx.py import failed: {e}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
+section "26. Walk-and-replace fallback — definitions table column mismatch"
+# =============================================================================
+# Known bug: _std_proc_table_plans assumes 3-column Definitions (No/Term/Def)
+# for Standard, but Procedure uses 2-column (Term/Def). Verify the schemas
+# actually have different definitions shapes so the code is correct.
+
+python3 -c "
+import json
+proc = json.load(open('skills/docx/templates/procedure_schema.json'))
+std  = json.load(open('skills/docx/templates/standard_schema.json'))
+
+proc_defs = proc.get('fields', {}).get('definitions', {})
+std_defs  = std.get('fields', {}).get('definitions', {})
+
+proc_items = proc_defs.get('items', {})
+std_items  = std_defs.get('items', {})
+
+proc_keys = sorted(proc_items.keys()) if isinstance(proc_items, dict) else []
+std_keys  = sorted(std_items.keys()) if isinstance(std_items, dict) else []
+
+print(f'INFO:Procedure definitions item keys: {proc_keys}')
+print(f'INFO:Standard definitions item keys: {std_keys}')
+
+if proc_keys == std_keys:
+    print('OK:definitions schemas have identical item shapes')
+elif set(std_keys) - set(proc_keys):
+    extra = set(std_keys) - set(proc_keys)
+    print(f'WARN:Standard definitions has extra fields vs Procedure: {extra} — render_docx.py _std_proc_table_plans must handle this')
+else:
+    print(f'WARN:definitions schemas differ: proc={proc_keys}, std={std_keys}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        INFO:*) echo "  ${line#INFO:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
+section "27. Cover-page fixup fragility — placeholder strings still in templates"
+# =============================================================================
+# _post_render_cover_fixup relies on exact string matches ("NAME",
+# "xxx-xxx-xxx-xxx-xxx-#####") in Standard/Guidance templates.
+# Verify these placeholders are present in the Jinja templates.
+
+for doc_type in standard guidance; do
+    tpl_file="skills/docx/templates/$(echo "$doc_type" | sed 's/^./\U&/') Template (Jinja).docx"
+    if [ -f "$tpl_file" ]; then
+        # Extract text content from the docx zip (word/*.xml)
+        FOUND_PLACEHOLDERS=0
+        for placeholder in "NAME" "xxx-xxx-xxx-xxx-xxx-#####"; do
+            if python3 -c "
+import zipfile, sys
+with zipfile.ZipFile('$tpl_file') as z:
+    for name in z.namelist():
+        if name.startswith('word/') and name.endswith('.xml'):
+            content = z.read(name).decode('utf-8', errors='replace')
+            if '$placeholder' in content:
+                sys.exit(0)
+sys.exit(1)
+" 2>/dev/null; then
+                FOUND_PLACEHOLDERS=$((FOUND_PLACEHOLDERS + 1))
+            fi
+        done
+        if [ "$FOUND_PLACEHOLDERS" -ge 1 ]; then
+            pass "$doc_type template has cover-page placeholders ($FOUND_PLACEHOLDERS/2)"
+        else
+            warn "$doc_type template missing cover-page placeholders — _post_render_cover_fixup will be a no-op"
+        fi
+    fi
+done
+
+# =============================================================================
+section "28. Sample input JSON — validates ALL three doc types"
+# =============================================================================
+
+VALIDATION_INPUTS=(
+    "procedure:samples/document-types-validation/_inputs/vendor-onboarding-procedure.json:skills/docx/templates/procedure_schema.json"
+    "standard:samples/document-types-validation/_inputs/records-retention-standard.json:skills/docx/templates/standard_schema.json"
+    "guidance:samples/document-types-validation/_inputs/remote-work-guidance.json:skills/docx/templates/guidance_schema.json"
+)
+for entry in "${VALIDATION_INPUTS[@]}"; do
+    IFS=':' read -r dtype input_file schema_file <<< "$entry"
+    if [ -f "$input_file" ] && [ -f "$schema_file" ]; then
+        python3 -c "
+import json
+schema = json.load(open('$schema_file'))
+sample = json.load(open('$input_file'))
+required = schema.get('required_markers', [])
+missing = [r for r in required if r not in sample]
+if missing:
+    for m in missing:
+        print(f'FAIL:$dtype input missing required field: {m}')
+else:
+    print(f'OK:$dtype input has all {len(required)} required fields')
+" 2>&1 | while IFS= read -r line; do
+            case "$line" in
+                OK:*)   pass "${line#OK:}" ;;
+                FAIL:*) fail "${line#FAIL:}" ;;
+            esac
+        done
+    else
+        [ ! -f "$input_file" ] && warn "$dtype validation input not found: $input_file"
+        [ ! -f "$schema_file" ] && fail "$dtype schema not found: $schema_file"
+    fi
+done
+
+# =============================================================================
+section "29. Files NOT relevant to fresh skill upload — inventory"
+# =============================================================================
+
+echo "  Comprehensive list of files/dirs that can be excluded from a clean"
+echo "  skills-only upload (they are examples, dev artifacts, or build outputs):"
+echo ""
+
+NOT_NEEDED=(
+    "Use this to share.zip:Flattened shareable bundle — use GitHub Releases instead"
+    ".claude/plans:Development planning docs — not runtime"
+    "samples/document-types-validation:Validation sample set — rebuild via _build/ scripts"
+    "output/final:Generated example outputs — add to .gitignore"
+    "output/iter:Iteration outputs — already gitignored"
+    "skills/theme-factory/theme-showcase.pdf:Pre-rendered showcase — already gitignored"
+    "SMOKE-TEST-FINDINGS.md:Previous smoke test findings — superseded by this script"
+    "extracted-specs.md:Claude-readable brand distillation — useful for Claude Projects but not for skill upload"
+    "gap-report.md:Gap analysis — useful for Claude Projects but not for skill upload"
+    "NextDecade-Claude-Project/05-samples:Hot Work example set — reference only"
+    "NextDecade-Claude-Project/03-original-templates:Source templates before Jinja tagging — used by build scripts not runtime"
+)
+NN_FOUND=0
+for entry in "${NOT_NEEDED[@]}"; do
+    IFS=':' read -r item reason <<< "$entry"
+    if [ -e "$item" ]; then
+        if [ -d "$item" ]; then
+            item_size=$(du -sm "$item" 2>/dev/null | cut -f1)
+            echo "    [${item_size:-?}MB dir] $item/"
+        else
+            size=$(stat -c%s "$item" 2>/dev/null || stat -f%z "$item" 2>/dev/null || echo 0)
+            size_mb=$(( size / 1048576 ))
+            echo "    [${size_mb}MB] $item"
+        fi
+        echo "           Reason: $reason"
+        NN_FOUND=$((NN_FOUND + 1))
+    fi
+done
+echo ""
+if [ "$NN_FOUND" -gt 0 ]; then
+    warn "$NN_FOUND items identified as removable for a clean skills-only upload"
+else
+    pass "No removable items found — repo is already lean"
+fi
+
+# =============================================================================
+section "30. NextDecade-Claude-Project/04-scripts — canonical copy check"
+# =============================================================================
+# The 04-scripts/ directory duplicates scripts from skills/docx/scripts/ and
+# skills/pptx/scripts/. Verify they're byte-identical so users don't get
+# different behavior depending on which copy they run.
+
+SCRIPT_PAIRS=(
+    "skills/docx/scripts/render_docx.py:NextDecade-Claude-Project/04-scripts/render_docx.py"
+    "skills/pptx/scripts/render_pptx.py:NextDecade-Claude-Project/04-scripts/render_pptx.py"
+)
+for pair in "${SCRIPT_PAIRS[@]}"; do
+    IFS=':' read -r canonical dupe <<< "$pair"
+    if [ -f "$canonical" ] && [ -f "$dupe" ]; then
+        if diff -q "$canonical" "$dupe" > /dev/null 2>&1; then
+            pass "script in sync: $(basename "$canonical") (skills/ == 04-scripts/)"
+        else
+            warn "script DIVERGED: $(basename "$canonical") differs between skills/ and 04-scripts/"
+        fi
+    elif [ ! -f "$dupe" ]; then
+        warn "04-scripts/ missing: $(basename "$canonical")"
+    fi
+done
+
+# =============================================================================
+# Reconcile counters from pipe subshells before printing summary
+# =============================================================================
+_reconcile_counters
+
+# =============================================================================
 # SUMMARY
 # =============================================================================
 
 echo ""
 echo "============================================="
-echo "  SMOKE TEST SUMMARY"
+echo "  SMOKE TEST SUMMARY  (v2 — $(date +%Y-%m-%d))"
 echo "============================================="
 echo "  PASS: $PASS"
 echo "  FAIL: $FAIL"
 echo "  WARN: $WARN"
+echo "  TOTAL CHECKS: $((PASS + FAIL + WARN))"
 echo "============================================="
 echo ""
 
@@ -606,6 +1090,8 @@ if [ "$FAIL" -gt 0 ]; then
     echo "    - Missing files: check git status, re-pull"
     echo "    - Schema drift: re-sync skills/ and NextDecade-Claude-Project/"
     echo "    - JSON errors: validate with python3 -m json.tool <file>"
+    echo "    - Branding override: move structure rules out of brand-guidelines"
+    echo "    - Schema cross-mismatch: align field types in shared fields"
     echo ""
     exit 1
 else
