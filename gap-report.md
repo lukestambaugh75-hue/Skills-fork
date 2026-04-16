@@ -26,7 +26,7 @@ Each .docx template carries:
 - NextDecade headers (logo + "[STANDARD/PROCEDURE/GUIDANCE Document NAME] Rev.: x  Doc. No. xxx-xxx-xxx-xxx-xxx-#####")
 - NextDecade-defined terms ("Workforce", "Governance Framework")
 
-What's NOT applied is the theme layer (Aptos / Times New Roman / #0F4761 teal heading). **Severity: low** — chrome and structure are NDLNG, only the typography defaults aren't. Documents produced from these templates inherit the brand chrome including the logo automatically.
+~~What's NOT applied is the theme layer (Aptos / Times New Roman / #0F4761 teal heading).~~ **RESOLVED 2026-04-16**: the theme layer (Segoe UI major/minor fonts) and heading color layer (#002060 Heading 1–4) were patched in both the Jinja templates (`skills/docx/templates/`, `NextDecade-Claude-Project/02-templates/`) and the walk-and-replace source templates (`NextDecade-Claude-Project/03-original-templates/`). Rendered output now matches the brand regardless of render path.
 
 ### 1c. Footer mission-line wording — **RESOLVED**
 
@@ -104,7 +104,7 @@ Status legend: **R** = Required by intake README, **r** = Recommended, **—** =
 | `internal-comms/` | Voice rules, channels, headline conventions, e-mail rules, capitalization/date/time rules captured. |
 | `safety-hse/` (NEW) | HSSE Flash template fields, photo disclaimer, classification footer all captured. |
 | `doc-coauthoring/` | Voice + style guide is enough to coach drafting. |
-| `docx/` | Templates carry NextDecade chrome + embedded logo + structure. Theme-typography override (Aptos→Segoe UI, teal→navy headings) can be applied at write-time. |
+| `docx/` | Templates carry NextDecade chrome + embedded logo + structure. Theme typography is Segoe UI and Heading 1–4 = #002060 navy at the template layer (patched 2026-04-16); no write-time override needed. |
 | `brand-guidelines/` | Color/font rules captured; logos reusable from existing templates. |
 | `legal-boilerplate/` (NEW) | FLS verbatim from .potx is the working canonical version per user direction (folder 11 out of scope). |
 | `classification/` (NEW) | HSSE-flash classification stamp is the working default per user direction (folder 18 out of scope). |

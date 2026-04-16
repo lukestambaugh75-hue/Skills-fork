@@ -61,9 +61,9 @@ Usage rule: Pantone preferred → CMYK for 4-color print → Hex for digital →
 
 ### 3c. DOCX themes
 
-All three .docx templates use **default Office "Office" theme** (Aptos / Aptos Display / colors 0E2841, 156082, E97132…). **Zero NDLNG colors are present** in the .docx theme. Heading 1 ships as #0F4761 (Word default teal) at 20pt.
+All three .docx templates now use **Segoe UI** (major and minor) and **Heading 1–4 colors set to #002060 navy**, patched 2026-04-16 at the theme and style layer in both Jinja templates (`skills/docx/templates/`, `NextDecade-Claude-Project/02-templates/`) and the walk-and-replace source templates (`NextDecade-Claude-Project/03-original-templates/`). Previously the templates inherited the Office default (Aptos/Aptos Display, heading teal #0F4761); that chrome was replaced so rendered output matches the brand regardless of which render path (docxtpl or walk-and-replace fallback) is taken.
 
-**Inconsistency #3 (medium)**: .docx templates carry NDLNG chrome (footers, headers, embedded logos, governance structure) but the underlying *theme* (font + theme colors) is Office default — not Segoe UI / brand navy.
+**Inconsistency #3 (medium)**: ~~.docx templates carry NDLNG chrome but underlying theme is Office default~~ — **RESOLVED 2026-04-16**: theme fonts patched to Segoe UI and Heading 1–4 colors patched to #002060. Logo / footer / header / governance chrome were already correct.
 
 ## 4. Typography
 
@@ -88,11 +88,11 @@ All three .docx templates use **default Office "Office" theme** (Aptos / Aptos D
 
 ### 4d. DOCX templates actually shipping
 
-- Theme major: **Aptos Display** | minor: **Aptos** (Office default) — does NOT match
-- Body runs hardcoded as **Times New Roman 11pt** — does NOT match
-- Heading 1: 20pt at #0F4761 (Word default teal) — wrong color, right size
+- Theme major: **Segoe UI** | minor: **Segoe UI** (patched 2026-04-16) — matches spec ✓
+- Heading 1–4: color **#002060 navy** (patched 2026-04-16) — matches spec ✓
+- Body runs: Body Text style defers to theme fonts (Segoe UI); no hardcoded Times New Roman remains at the style level.
 
-**Inconsistency #4 (material)**: Word templates ignore the Segoe UI brand standard.
+**Inconsistency #4 (material)**: ~~Word templates ignore the Segoe UI brand standard~~ — **RESOLVED 2026-04-16**: theme and heading-color layers patched in both Jinja and walk-and-replace-source templates. Any remaining body-run font overrides (e.g., Times New Roman in direct formatting on individual runs in the source documents) would still surface in the rendered output; none were observed in the shipping templates.
 
 ## 5. Voice & writing style
 

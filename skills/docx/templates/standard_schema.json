@@ -99,9 +99,9 @@
     "revision_history": {
       "type": "list[object]",
       "min_items": 1,
-      "description": "Rows of the Revision History table (2 columns: Revision / Description of Changes and Notes).",
+      "description": "Rows of the Revision History table (2 columns: Revision / Description of Changes and Notes). Uses the same `rev` key as the Procedure template's revision_history so schemas are consistent across doc types.",
       "item_shape": {
-        "number": "string — revision number or letter (e.g., '0', '1', 'A')",
+        "rev": "string — revision number or letter (e.g., '0', '1', 'A')",
         "description": "string — what changed in this revision (e.g., 'Initial issue', 'Updated retention periods')"
       }
     }

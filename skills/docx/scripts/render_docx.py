@@ -22,6 +22,11 @@ from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
+# NOTE: TEMPLATES and UPLOADS path constants below differ between the two
+# render_docx.py copies (skills/docx/scripts/ vs NextDecade-Claude-Project/
+# 04-scripts/) because each copy resolves templates relative to its own
+# directory. The smoke test strips path-constant lines before diffing so
+# only functional drift is reported.
 TEMPLATES = HERE.parent / "templates"
 LINTER = HERE / "lint_docx_template.py"
 
@@ -784,13 +789,16 @@ def _table_plans_common(data, _set):
     def fill_rev(t):
         data_rows = list(t.rows)[1:]
         for i, rev in enumerate(data["revision_history"]):
+            # Schema uses "rev" across all doc types. Accept legacy "number"
+            # for back-compat with any still-unmigrated input JSONs.
+            rev_label = rev.get("rev", rev.get("number", ""))
             if i < len(data_rows):
                 r = data_rows[i]
-                _set(r.cells[0].paragraphs[0], rev["number"])
+                _set(r.cells[0].paragraphs[0], rev_label)
                 _set(r.cells[1].paragraphs[0], rev["description"])
             else:
                 new_row = t.add_row()
-                new_row.cells[0].text = rev["number"]
+                new_row.cells[0].text = rev_label
                 new_row.cells[1].text = rev["description"]
         for r in data_rows[len(data["revision_history"]):]:
             r._element.getparent().remove(r._element)
