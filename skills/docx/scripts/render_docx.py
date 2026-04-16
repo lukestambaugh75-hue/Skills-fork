@@ -72,7 +72,8 @@ def _xml_escape_data(obj):
 
     docxtpl injects rendered text directly into Word XML. If the data contains
     raw '&', '<', or '>' the XML parser fails with 'xmlParseEntityRef'. This
-    pre-escaping makes the docxtpl path safe for arbitrary user content.
+    pre-escaping makes the docxtpl path safe for arbitrary user content
+    including ampersands, angle brackets, and em-dashes.
     """
     from xml.sax.saxutils import escape
     if isinstance(obj, str):
@@ -110,14 +111,19 @@ def _post_render_cover_fixup(output: Path, data: dict, doc_type: str) -> list[st
 
     type_label = {"standard": "STANDARD", "guidance": "GUIDANCE"}.get(doc_type)
     if type_label is None:
-        return []
+        return []  # procedure has its own cover-page handling via docxtpl markers
 
+    # Define replacements per doc type
     replacements = []
     if doc_name:
+        # Cover text box: "NAME" (standalone or part of "NAME STANDARD DOCUMENT")
         replacements.append(("NAME", doc_name))
+        # Header: "[Name] Standard" or "[GUIDANCE Document NAME]"
         replacements.append((f"[Name] {type_label.title()}", f"{doc_name}"))
         replacements.append((f"[{type_label} Document NAME]", f"{doc_name}"))
     if doc_num:
+        # Cover text box uses "xxx-xxx-xxx-xxx-xxx-#####"; headers may use
+        # "xxx-xxx-xxx-xxx-xxx-" (trailing dash, no #####). Replace both.
         replacements.append(("xxx-xxx-xxx-xxx-xxx-#####", doc_num))
         replacements.append(("Doc. No. xxx-xxx-xxx-xxx-xxx-", f"Doc. No. {doc_num}"))
 
@@ -160,11 +166,13 @@ def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
     changed = False
 
     if doc_type == "procedure":
+        # Remove boilerplate instruction paragraph
         for p in list(doc.paragraphs):
             if "Use the following for notes, cautions, and warnings" in p.text:
                 p._element.getparent().remove(p._element)
                 changed = True
 
+        # Remove Note/Caution/Warning demo table
         for t in list(doc.tables):
             cell_texts = []
             for row in t.rows:

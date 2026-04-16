@@ -1050,13 +1050,19 @@ SCRIPT_PAIRS=(
     "skills/docx/scripts/render_docx.py:NextDecade-Claude-Project/04-scripts/render_docx.py"
     "skills/pptx/scripts/render_pptx.py:NextDecade-Claude-Project/04-scripts/render_pptx.py"
 )
+# Path constants MUST differ between skills/ and 04-scripts/ because the files
+# live in different directories. Strip known path-constant lines before comparing
+# so only functional divergence is flagged.
 for pair in "${SCRIPT_PAIRS[@]}"; do
     IFS=':' read -r canonical dupe <<< "$pair"
     if [ -f "$canonical" ] && [ -f "$dupe" ]; then
-        if diff -q "$canonical" "$dupe" > /dev/null 2>&1; then
-            pass "script in sync: $(basename "$canonical") (skills/ == 04-scripts/)"
+        if diff -q \
+            <(grep -v 'TEMPLATES\|UPLOADS\|_REPO_ROOT\|HERE\.parent\|HERE\.parents\|Resolve.*relative.*this file' "$canonical") \
+            <(grep -v 'TEMPLATES\|UPLOADS\|_REPO_ROOT\|HERE\.parent\|HERE\.parents\|Resolve.*relative.*this file' "$dupe") \
+            > /dev/null 2>&1; then
+            pass "script in sync: $(basename "$canonical") (functional code identical, paths adjusted)"
         else
-            warn "script DIVERGED: $(basename "$canonical") differs between skills/ and 04-scripts/"
+            warn "script DIVERGED: $(basename "$canonical") has functional differences between skills/ and 04-scripts/"
         fi
     elif [ ! -f "$dupe" ]; then
         warn "04-scripts/ missing: $(basename "$canonical")"
