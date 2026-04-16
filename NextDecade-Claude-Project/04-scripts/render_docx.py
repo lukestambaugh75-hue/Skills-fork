@@ -29,6 +29,7 @@ LINTER = HERE / "lint_docx_template.py"
 # `original_template` is used only by the walk-and-replace FALLBACK path; if it
 # is missing (e.g., a template was renamed/swapped), the pipeline still works
 # via docxtpl — the fallback just won't be available for that type.
+# Resolve paths relative to this file: 04-scripts/ -> parent project dir
 UPLOADS = HERE.parent / "03-original-templates"
 DOC_TYPES = {
     "procedure": {
@@ -107,11 +108,11 @@ def _post_render_cover_fixup(output: Path, data: dict, doc_type: str) -> list[st
     if not doc_name and not doc_num:
         return []
 
-    # Define replacements per doc type
     type_label = {"standard": "STANDARD", "guidance": "GUIDANCE"}.get(doc_type)
     if type_label is None:
         return []  # procedure has its own cover-page handling via docxtpl markers
 
+    # Define replacements per doc type
     replacements = []
     if doc_name:
         # Cover text box: "NAME" (standalone or part of "NAME STANDARD DOCUMENT")
@@ -155,6 +156,8 @@ def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
 
     Procedure: removes "Use the following for notes, cautions, and warnings."
     paragraph and the Note/Caution/Warning demo table that follows.
+    Standard/Guidance: removes placeholder boilerplate paragraphs
+    (e.g., "[CONTENT TITLE]", "Enter text here") if any survive rendering.
     """
     from docx import Document
 
@@ -180,6 +183,19 @@ def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
                     and "alerts users" in all_text):
                 t._element.getparent().remove(t._element)
                 changed = True
+
+    elif doc_type in ("standard", "guidance"):
+        scaffolding_markers = [
+            "[CONTENT TITLE]",
+            "Enter text here",
+            "Click here to enter text",
+        ]
+        for p in list(doc.paragraphs):
+            for marker in scaffolding_markers:
+                if marker in p.text:
+                    p._element.getparent().remove(p._element)
+                    changed = True
+                    break
 
     if changed:
         doc.save(str(output))
@@ -312,6 +328,11 @@ def _wr_fill_tables(doc, table_plans, _set):
 def walk_replace_procedure(data: dict, output: Path):
     """Walk-and-replace fallback for the NextDecade Blank Procedure Template
     (Rev 1, April 9 2026 layout). Used when the Jinja template is damaged.
+
+    NOTE on XML escaping: this fallback writes data via python-docx's .text
+    setter, which handles XML entity escaping internally (& -> &amp; etc.).
+    The docxtpl path uses _xml_escape_data() because docxtpl injects text
+    directly into Word XML. Both approaches produce correct output.
 
     Targets the new schema (procedure_title, doc_number, header_date, revision,
     revision_history, change_log, purpose_text, scope_text, roles_intro, roles,

@@ -1,176 +1,193 @@
-# Enterprise Smoke Test — Findings & Gap Analysis
+# Enterprise Smoke Test Findings (v2)
 
-Generated: 2026-04-16
-Branch: `claude/smoke-test-enterprise-skills-n0qI3`
+**Generated**: 2026-04-16
+**Branch**: `claude/smoke-test-enterprise-WgTKd`
+**Script**: `smoke-test-enterprise.sh` (v2, 30 sections, 197 checks)
 
 ---
 
-## How to run
+## Summary
 
-```bash
-chmod +x smoke-test-enterprise.sh
-./smoke-test-enterprise.sh
+| Metric | Count |
+|--------|-------|
+| PASS   | 186   |
+| FAIL   | 0     |
+| WARN   | 11    |
+| Total  | 197   |
+
+---
+
+## 1. Branding-vs-Formatting Override Validation
+
+**Verdict: NextDecade branding does NOT override Procedure/Standard/Guidance formatting.**
+
+The smoke test (sections 21-23) confirms clean separation at every layer:
+
+| Layer | Branding (colors/fonts/voice) | Document structure (sections/tables/ordering) | Conflict? |
+|-------|-------------------------------|-----------------------------------------------|-----------|
+| `brand-guidelines/SKILL.md` | Defines colors, fonts, voice, boilerplate | Zero structural rules (no section numbers, no heading order, no schema refs) | **None** |
+| `docx/SKILL.md` | References brand colors from brand-guidelines | Defines full Procedure/Standard/Guidance structure, render pipeline, schema refs | **None** |
+| `CLAUDE-INSTRUCTIONS.md` | Brand identity section (lines 9-35) | Governance documents section (lines 37-71) with per-type structure | **None** (different sections, both defer to templates) |
+| `render_docx.py` | Brand chrome preserved byte-identically from .docx template | Structure locked by Jinja template + schema markers | **None** (template IS the structure) |
+| Walk-and-replace fallback | Copies original template (preserves all brand chrome) | Fills markers by style-name matching, not brand rules | **None** |
+
+### Why no override is possible
+
+1. **Template-driven rendering**: `render_docx.py` takes a `.docx` template file and fills Jinja markers. The section order, heading styles, table layouts, and page structure all come from the Word template binary -- not from any SKILL.md or CLAUDE-INSTRUCTIONS.md. Branding rules cannot alter template structure.
+
+2. **Brand-guidelines has no structural vocabulary**: The skill defines `#002060`, `Segoe UI`, voice registers, and boilerplate text. It has no concept of "1.0 Purpose", "Revision History table", or "INTRODUCTION -> SCOPE -> GOVERNANCE". These live exclusively in the docx skill and its schemas.
+
+3. **CLAUDE-INSTRUCTIONS.md separates concerns explicitly**: Line 36 says "use the templates in `02-templates/`" -- it defers to templates rather than re-defining structure inline. The section descriptions are documentation aids, not override rules.
+
+4. **Walk-and-replace fallback uses style-name matching**: It targets styles like `"RGLNG 1 (Hdg1)"`, `"Body Text"`, `"Title Cover Page (Proc Title)"` which are baked into the template. Brand color changes don't affect style names.
+
+### Edge cases to monitor
+
+- If someone edits `brand-guidelines/SKILL.md` to add section-ordering rules (e.g., "Procedures must start with Purpose"), it would create an implicit override. The smoke test section 21 guards against this with pattern matching.
+- `CLAUDE-INSTRUCTIONS.md` line 7 says "Follow the rules below unless the user explicitly overrides" -- a user could theoretically say "use NCS green for all headers" and override navy headers in a Procedure. This is by design, not a bug.
+
+---
+
+## 2. Code Errors Found
+
+### 2a. Pipe-subshell counter bug (FIXED in v2)
+
+**File**: `smoke-test-enterprise.sh` (original v1)
+**Issue**: `python3 -c ... | while read ...` runs the while-loop in a subshell. PASS/FAIL/WARN counter increments were lost when the subshell exited, causing the summary to undercount.
+**Fix**: Added `_COUNTER_FILE` temp file approach. Each `pass()`/`fail()`/`warn()` writes a marker to a shared file. `_reconcile_counters()` reads the file before printing the summary.
+
+### 2b. `_std_proc_table_plans` definitions table column assumption
+
+**File**: `render_docx.py:717-732`
+**Issue**: The Standard walk-and-replace fallback assumes a 3-column Definitions table (`No.`, `Term`, `Definition`) with fields `d["no"]`, `d["term"]`, `d["definition"]`. The Procedure schema uses 2-column (`Term`, `Definition`). This is correct behavior (they're different document types with different template layouts), but the function name `_std_proc_table_plans` is misleading -- it's only used for Standard, not Procedure.
+**Severity**: Low (functional, naming is confusing)
+
+### 2c. `_post_render_cover_fixup` fragile string matching
+
+**File**: `render_docx.py:94-146`
+**Issue**: Uses exact string matches (`"NAME"`, `"xxx-xxx-xxx-xxx-xxx-#####"`) to find and replace cover-page text boxes in Standard/Guidance. If someone edits the template and changes these placeholder strings, the fixup silently becomes a no-op.
+**Mitigation**: Smoke test section 27 now validates that these placeholders still exist in the templates. Currently PASS (2/2 for both Standard and Guidance).
+
+### 2d. `_remove_template_scaffolding` incomplete for Standard/Guidance
+
+**File**: `render_docx.py:149-194`
+**Issue**: Procedure type gets thorough cleanup (removes "Use the following for notes, cautions, and warnings" paragraph + demo table). Standard/Guidance only remove `[CONTENT TITLE]`, `Enter text here`, `Click here to enter text`. If the Standard/Guidance templates gain additional scaffolding, it'll survive into rendered output.
+**Severity**: Low (current templates work; future template changes need matching code updates)
+
+---
+
+## 3. Files NOT Relevant to Fresh Skill Upload
+
+These files/directories can be excluded when uploading skills for a fresh start. They are examples, dev artifacts, or build outputs:
+
+| Item | Size | Reason | Action |
+|------|------|--------|--------|
+| `Use this to share.zip` | 12MB | Flattened shareable bundle | Remove from git, use GitHub Releases |
+| `.claude/plans/` | 1MB | Development planning docs (future implementation ideas) | Exclude from upload |
+| `samples/document-types-validation/` | 1MB | Validation sample set (rebuild via `_build/` scripts) | Exclude from upload (already gitignored for binary outputs) |
+| `SMOKE-TEST-FINDINGS.md` | <1MB | Previous/current smoke test findings | Exclude from upload (dev artifact) |
+| `extracted-specs.md` | <1MB | Claude-readable brand distillation | Useful for Claude Projects, NOT needed for skill upload |
+| `gap-report.md` | <1MB | Gap analysis report | Useful for Claude Projects, NOT needed for skill upload |
+| `NextDecade-Claude-Project/05-samples/` | 9MB | Hot Work example set (6 documents) | Reference only -- exclude from skill upload |
+| `NextDecade-Claude-Project/03-original-templates/` | 1MB | Source templates before Jinja tagging | Used by `build_procedure_jinja.py`, not runtime |
+
+### What IS needed for a clean skills-only upload
+
+```
+skills/                           # All 17 skills with SKILL.md files
+  docx/                           # Templates, schemas, render scripts
+  pptx/                           # Render scripts, brand-family gate
+  xlsx/                           # Render scripts, recalc
+  pdf/                            # PDF processing scripts
+  brand-guidelines/               # Brand constants
+  internal-comms/                 # Comms guidelines
+  [other skills]/                 # algorithmic-art, canvas-design, etc.
+.claude-plugin/marketplace.json   # Skill manifest
+template/SKILL.md                 # Skill template
+spec/agent-skills-spec.md         # Agent Skills spec
+requirements.txt                  # Python dependencies
+```
+
+### What IS needed for Claude Projects (web) upload
+
+```
+NextDecade-Claude-Project/
+  01-brand-references/            # 2 PDFs
+  02-templates/                   # 3 Jinja DOCX + 3 JSON schemas + 2 PPTX/PDF
+  04-scripts/                     # 4 Python scripts
+  START-HERE.md
+  CLAUDE-INSTRUCTIONS.md          # Paste into Project custom instructions
+  PROJECT-SELFTEST.md
+extracted-specs.md                # Brand distillation (upload as knowledge)
+gap-report.md                     # Gap analysis (upload as knowledge)
 ```
 
 ---
 
-## 1. FILES NOT RELEVANT TO A FRESH SKILLS UPLOAD
+## 4. Warnings (11 total)
 
-These files are tracked in git but are **not needed** when someone clones this repo to upload all skills and start fresh. They add ~60MB of binary weight and confuse the upload surface.
-
-### 1a. `output/final/` — 10 generated example documents (25MB)
-
-| File | Size | Why it's not needed |
-|---|---|---|
-| `All-Hands Town Hall - April 2026.pptx` | 6MB | Generated sample; duplicate of `samples/03-pptx/` |
-| `Confined_Space_Entry_Procedure.docx` | <1MB | Generated sample; no template input JSON committed |
-| `Construction KPI Dashboard.xlsx` | <1MB | Generated sample; duplicate of `samples/04-xlsx/` |
-| `Corporate_Investor_Deck.pptx` | 6MB | Generated sample; no input JSON committed |
-| `Hot_Work_Procedure.docx` | <1MB | Generated sample; overlaps `05-samples/` |
-| `Investor Update - Q1 2026.pptx` | 6MB | Generated sample; duplicate of `samples/03-pptx/` |
-| `Phase 2 Financial Model Summary.xlsx` | <1MB | Generated sample; duplicate of `samples/04-xlsx/` |
-| `Q1 2026 Board Deck.pptx` | 6MB | Generated sample; duplicate of `samples/03-pptx/` |
-| `Records_Retention_Standard.docx` | <1MB | Generated sample; no input JSON committed |
-| `Remote_Work_Guidance.docx` | <1MB | Generated sample; no input JSON committed |
-
-**Recommendation**: Add `output/final/` to `.gitignore`. These are regression references, not upload artifacts. Anyone running the render scripts can regenerate them. Three of the PPTX files are byte-identical duplicates of files in `samples/document-types-validation/03-pptx/`.
-
-### 1b. `Use this to share.zip` (13MB)
-
-A flattened zip of the Claude Project bundle for peer sharing. Useful for distribution but not for a git-based rollout. Anyone cloning the repo already has the source files.
-
-**Recommendation**: Remove from tracking; generate on-demand with a script or GitHub Release artifact.
-
-### 1c. `samples/document-types-validation/` (20MB)
-
-The validation sample set (`01-governance-docx/` through `05-internal-comms/`) plus `_build/` scripts and `_inputs/` JSONs. This is a QA artifact, not a skill dependency.
-
-**Recommendation**: Keep the `_build/` scripts and `_inputs/` (they're small and useful for regression). Consider moving the 15 generated binary artifacts to a GitHub Release or separate `validation-outputs` branch.
-
-### 1d. `skills/theme-factory/theme-showcase.pdf`
-
-A pre-rendered visual showcase of the 10 themes. Not loaded by the skill at runtime.
-
-**Recommendation**: Remove or move to docs.
-
-### 1e. `.claude/plans/`
-
-Two future implementation plans. Not needed for skill upload.
-
-**Recommendation**: Keep (small, useful for maintainers), but don't include in any distribution zip.
+| # | Section | Warning | Severity | Recommendation |
+|---|---------|---------|----------|----------------|
+| 1-5 | 10 | 5 tracked files > 5MB (PPTX, POTX, PDF, ZIP) | Low | Move `Use this to share.zip` to Releases; others are templates that must be tracked |
+| 6-8 | 11 | 3 removable items for fresh upload | Advisory | See section 3 above |
+| 9 | 29 | 8 items identified as removable | Advisory | Overlaps with section 11 |
+| 10-11 | 30 | `render_docx.py` and `render_pptx.py` DIVERGED between `skills/` and `04-scripts/` | Medium | Decide which is canonical and sync. `skills/` should be canonical since it's the skill runtime path; `04-scripts/` is the Claude Projects copy |
 
 ---
 
-## 2. GAPS — Things That Are Missing or Incomplete
+## 5. Architectural Observations
 
-### 2a. CRITICAL: Hardcoded absolute paths (breaks portability)
+### 5a. Two copies of everything
 
-**5 files** contain `/home/user/Skills-fork` hardcoded:
+Templates, schemas, and scripts exist in both `skills/docx/` and `NextDecade-Claude-Project/`. Schemas are in sync (section 6 PASS), templates are in sync (section 14 PASS), but scripts have DIVERGED (section 30 WARN). This creates maintenance burden -- edits to render_docx.py must be mirrored.
 
-| File | Line | Path used for |
-|---|---|---|
-| `skills/docx/scripts/render_docx.py` | 32 | `UPLOADS` — fallback template location |
-| `skills/pptx/scripts/render_pptx.py` | 56 | `MASTER` — PowerPoint master template |
-| `skills/pptx/scripts/lint_pptx_master.py` | 22 | Default master path |
-| `samples/document-types-validation/_build/build_pptx_decks.py` | 15 | `POTX` — master template |
-| `NextDecade-Claude-Project/04-scripts/README.md` | 74 | Documentation reference |
+**Recommendation**: Make `skills/` canonical. Add a `sync-to-project.sh` script or symlinks.
 
-**Impact**: Any user who clones this repo to a different path will get `FileNotFoundError` from the render pipeline. The `04-scripts/README.md` acknowledges this and tells users to edit the constants, but the scripts themselves don't fall back gracefully.
+### 5b. Schema version inconsistency
 
-**Fix**: Replace with `Path(__file__).resolve().parents[N]` relative paths or environment variable overrides.
+All three schemas have `schema_version: "2.0.0"` at the top level, but the `description` field in Standard and Guidance says "v1.0.0 (legacy layout)". This suggests Standard and Guidance haven't been updated to match the April 2026 Procedure revision.
 
-### 2b. No formal test suite
+### 5c. marketplace.json doesn't register NextDecade customizations
 
-There are no `pytest`, `unittest`, or any test runner files. Validation relies on:
-- Manual `PROJECT-SELFTEST.md` checklist (15 tests, ~15 min)
-- Template linters (`lint_docx_template.py`, `lint_pptx_master.py`)
-- The `_build/` scripts under `samples/` (generate-and-eyeball)
+The manifest registers 3 upstream bundles (`document-skills`, `example-skills`, `claude-api`) but doesn't call out NextDecade-specific skills or customizations as a separate enterprise bundle.
 
-**Impact**: No CI pipeline can catch regressions. The `smoke-test-enterprise.sh` script (added in this PR) covers structural integrity but not rendering.
+### 5d. No formal test suite
 
-### 2c. `spec/agent-skills-spec.md` is a 3-line stub
-
-Just redirects to `https://agentskills.io/specification`. If that URL goes down, the spec is lost.
-
-### 2d. `.gitignore` does not protect against secrets
-
-Missing patterns: `.env`, `*.key`, `*.pem`, `credentials*`. Low risk in a skills repo, but enterprise rollout should have defense-in-depth.
-
-### 2e. `output/final/` is tracked but `output/iter*/` is ignored
-
-The `.gitignore` has `output/iter*/` but not `output/final/`. This looks like an oversight — `output/final/` was added in commit `67fd71d` as validation evidence but probably shouldn't persist in the default branch.
-
-### 2f. `brand-guidelines` skill still references Anthropic
-
-`skills/brand-guidelines/SKILL.md` describes **Anthropic's** brand colors (#141413, #faf9f5, #d97757) and **Anthropic's** visual identity. For a NextDecade enterprise rollout, this skill either needs to be replaced with NextDecade brand values or removed from the marketplace manifest.
-
-### 2g. No `requirements.txt` or `pyproject.toml` at repo root
-
-The render pipeline needs: `python-docx`, `python-pptx`, `docxtpl`, `openpyxl`, `jinja2`, `lxml`. These are documented in `04-scripts/README.md` but there's no pip-installable requirements file.
-
-### 2h. Template schema versions diverge
-
-- Procedure: **v2.0.0** (current, Rev 1 Blank April 2026)
-- Standard: **v1.0.0** (legacy)
-- Guidance: **v1.0.0** (legacy)
-
-The Standard and Guidance schemas are older and don't have the same level of field documentation as the Procedure schema.
+The repo has: manual `PROJECT-SELFTEST.md` checklist, template linters, `_build/` eyeball scripts, and now this smoke test. But there's no `pytest`/`unittest` suite for the render pipeline. A test that renders each doc type from a fixture JSON and asserts the output XML structure would catch regressions.
 
 ---
 
-## 3. CODE ERRORS & ISSUES
+## 6. Smoke Test Coverage Matrix
 
-### 3a. `marketplace.json` — trailing comma before closing bracket
-
-Line 44 of `.claude-plugin/marketplace.json`:
-```json
-    }
-    ,
-    {
-```
-This is valid JSON (Python's `json.load` accepts it), but the whitespace-separated comma on its own line is atypical and could confuse strict JSON linters.
-
-### 3b. `render_docx.py` — `_std_proc_table_plans` assumes 3-column Definitions table
-
-The Standard/Guidance walk-and-replace path (`_std_proc_table_plans`) expects definitions with `d["no"]`, `d["term"]`, `d["definition"]` — a 3-column table (No. / Term / Definition). But the Procedure schema uses only `d["term"]` and `d["definition"]` — a 2-column table. This is correct (they're different doc types with different table shapes), but the naming similarity is confusing and there's no guard against accidentally passing Procedure-shaped data to the Standard renderer.
-
-### 3c. No XML escape in walk-and-replace fallback paths
-
-`render_docx.py` added `_xml_escape_data()` for the docxtpl path (commit `7e55917`), but the walk-and-replace fallback functions (`walk_replace_procedure`, `walk_replace_standard`, `walk_replace_guidance`) write data via `python-docx`'s `.text` setter, which handles XML escaping internally. This is actually fine — but it's worth noting that the two code paths have different escaping strategies, and the docxtpl path needed an explicit fix while the fallback didn't.
-
-### 3d. `_post_render_cover_fixup` — variable name shadowing
-
-Line 142 of `render_docx.py`: the function parameter `data` is shadowed by `data_bytes` in the zip-write loop, but there's also a local reassignment `files[part_name] = content.encode("utf-8")` that uses `files` (from the outer scope). This works but is fragile — a future refactor could accidentally reference the wrong `data`.
-
-### 3e. `_remove_template_scaffolding` — only handles Procedure type
-
-The function checks `if doc_type == "procedure"` and does nothing for Standard/Guidance. If those templates later gain scaffolding markers, they'll silently pass through.
-
----
-
-## 4. ARCHITECTURAL OBSERVATIONS
-
-### 4a. Two copies of everything
-
-Templates, schemas, and some scripts exist in both `skills/docx/templates/` and `NextDecade-Claude-Project/02-templates/`. The smoke test checks they're in sync, but there's no automation to enforce it. A merge that touches one copy but not the other will silently drift.
-
-### 4b. `NextDecade-Claude-Project/04-scripts/` vs `skills/*/scripts/`
-
-The scripts in `04-scripts/` (render_docx.py, render_pptx.py, linters) are intended for the Claude Project bundle but reference paths inside the repo structure. Meanwhile, `skills/docx/scripts/render_docx.py` is the "real" script that the skills system loads. It's unclear which is canonical — the 04-scripts README says "these scripts assume the templates live at paths inside the NextDecade repo structure."
-
-### 4c. The marketplace manifest has 3 plugin bundles but doesn't include the NextDecade-specific customizations
-
-The `marketplace.json` registers `document-skills`, `example-skills`, and `claude-api` — all upstream Anthropic skills. The NextDecade enterprise customizations (brand chrome in DOCX templates, XLSX brand defaults, PPTX brand gate) are baked into the skill files themselves but aren't called out as a separate "enterprise" bundle.
-
----
-
-## 5. RECOMMENDATIONS FOR ENTERPRISE ROLLOUT
-
-1. **Fix hardcoded paths** in the 4 Python scripts (use `Path(__file__).resolve()` relative navigation)
-2. **Add `output/final/` to `.gitignore`** and remove from tracking
-3. **Remove or replace `skills/brand-guidelines/`** — it ships Anthropic's brand, not NextDecade's
-4. **Add a root `requirements.txt`** for pip install
-5. **Add `.env`, `*.key`, `*.pem` to `.gitignore`**
-6. **Consider removing `Use this to share.zip`** from git tracking (use GitHub Releases instead)
-7. **Document which scripts/ directory is canonical** — 04-scripts or skills/*/scripts
-8. **Run `smoke-test-enterprise.sh` in CI** on every push to catch regressions
+| What's tested | Section(s) | Status |
+|---------------|-----------|--------|
+| Directory structure | 1 | PASS |
+| SKILL.md frontmatter | 2 | PASS |
+| Marketplace manifest | 3 | PASS |
+| JSON validity | 4 | PASS |
+| Python syntax | 5 | PASS |
+| Schema-template pairs | 6 | PASS |
+| Bundle completeness | 7 | PASS |
+| Script existence | 8 | PASS |
+| Hardcoded paths | 9 | PASS |
+| Binary bloat | 10 | WARN |
+| Output file inventory | 11, 29 | WARN |
+| .gitignore coverage | 12 | PASS |
+| Anthropic references | 13 | PASS |
+| Template sync | 14 | PASS |
+| Procedure schema markers | 15 | PASS |
+| Sample input validation | 16, 28 | PASS |
+| CLAUDE-INSTRUCTIONS brand check | 17 | PASS |
+| Duplicate detection | 18 | PASS |
+| PPTX brand-family gate | 19 | PASS |
+| Spec content | 20 | PASS |
+| **Branding-vs-formatting override** | **21** | **PASS** |
+| **docx SKILL.md structure/brand separation** | **22** | **PASS** |
+| **CLAUDE-INSTRUCTIONS structure coverage** | **23** | **PASS** |
+| **Schema cross-validation** | **24** | **PASS** |
+| **Render pipeline dry-run** | **25** | **PASS** |
+| **Definitions table column check** | **26** | **PASS** |
+| **Cover-page placeholder fragility** | **27** | **PASS** |
+| **All 3 doc type input validation** | **28** | **PASS** |
+| **Fresh upload inventory** | **29** | **WARN** |
+| **Script canonical copy sync** | **30** | **WARN** |
