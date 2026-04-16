@@ -4,3 +4,19 @@ __pycache__/
 .vscode/
 
 output/iter*/
+output/final/
+
+# Generated sample binaries (rebuild via samples/_build/ scripts)
+samples/document-types-validation/01-governance-docx/
+samples/document-types-validation/02-business-docx/
+samples/document-types-validation/03-pptx/
+samples/document-types-validation/04-xlsx/
+samples/document-types-validation/05-internal-comms/
+
+# Secrets / credentials
+.env
+.env.*
+*.key
+*.pem
+*.secret
+credentials*

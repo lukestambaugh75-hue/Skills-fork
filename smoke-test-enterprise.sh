@@ -24,7 +24,9 @@
 #
 # =============================================================================
 
-set -euo pipefail
+set -uo pipefail
+# Note: intentionally NOT using set -e. Many checks use grep/diff that return
+# non-zero on "no match" — those are expected, not errors.
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
@@ -311,7 +313,7 @@ section "9. Hardcoded path audit"
 # =============================================================================
 
 echo "  Checking for hardcoded /home/user/Skills-fork paths in code..."
-HC_COUNT=$(grep -rn '/home/user/Skills-fork' --include='*.py' . 2>/dev/null | grep -v '.git/' | wc -l)
+HC_COUNT=$(grep -rn '/home/user/Skills-fork' --include='*.py' . 2>/dev/null | grep -v '.git/' | wc -l || true)
 if [ "$HC_COUNT" -eq 0 ]; then
     pass "No hardcoded absolute paths in Python files"
 else

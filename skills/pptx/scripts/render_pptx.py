@@ -52,9 +52,11 @@ from __future__ import annotations
 import sys, json, shutil, zipfile, subprocess
 from pathlib import Path
 
-MASTER = Path(
-    "/home/user/Skills-fork/NextDecade-Claude-Project/02-templates/"
-    "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
+HERE = Path(__file__).resolve().parent
+_REPO_ROOT = HERE.parents[2]
+MASTER = (
+    _REPO_ROOT / "NextDecade-Claude-Project" / "02-templates"
+    / "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
 
 # Brand-family gate. The PPTX master carries parallel ND / RG / NCS layout
