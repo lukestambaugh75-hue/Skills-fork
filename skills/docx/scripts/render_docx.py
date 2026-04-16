@@ -72,6 +72,61 @@ def render_via_docxtpl(data: dict, template: Path, output: Path) -> None:
     tpl.save(str(output))
 
 
+def _post_render_cover_fixup(output: Path, data: dict, doc_type: str) -> list[str]:
+    """Patch cover-page text boxes and headers in the rendered .docx.
+
+    The Standard and Guidance Jinja templates have plain-text placeholders
+    ("NAME", "xxx-xxx-xxx-xxx-xxx-#####") inside text boxes and headers that
+    docxtpl cannot reach because they're not Jinja markers. This function
+    does a targeted XML search-and-replace inside the .docx zip.
+
+    Returns a list of patches applied (for logging).
+    """
+    import re, zipfile
+
+    doc_name = data.get("document_name", "")
+    doc_num = data.get("doc_number", "")
+    if not doc_name and not doc_num:
+        return []
+
+    type_label = {"standard": "STANDARD", "guidance": "GUIDANCE"}.get(doc_type)
+    if type_label is None:
+        return []
+
+    replacements = []
+    if doc_name:
+        replacements.append(("NAME", doc_name))
+        replacements.append((f"[Name] {type_label.title()}", f"{doc_name}"))
+        replacements.append((f"[{type_label} Document NAME]", f"{doc_name}"))
+    if doc_num:
+        replacements.append(("xxx-xxx-xxx-xxx-xxx-#####", doc_num))
+        replacements.append(("Doc. No. xxx-xxx-xxx-xxx-xxx-", f"Doc. No. {doc_num}"))
+
+    patches = []
+    with zipfile.ZipFile(output) as zin:
+        files = {n: zin.read(n) for n in zin.namelist()}
+        infos = {n: zin.getinfo(n) for n in zin.namelist()}
+
+    target_parts = [n for n in files if n.startswith("word/") and n.endswith(".xml")]
+    for part_name in target_parts:
+        content = files[part_name].decode("utf-8")
+        changed = False
+        for old, new in replacements:
+            if old in content:
+                content = content.replace(old, new)
+                patches.append(f"{part_name}: '{old}' -> '{new}'")
+                changed = True
+        if changed:
+            files[part_name] = content.encode("utf-8")
+
+    if patches:
+        with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as zout:
+            for name, data_bytes in files.items():
+                zout.writestr(infos[name], data_bytes)
+
+    return patches
+
+
 # ---------------------------------------------------------------------------
 # Walk-and-replace fallback (per-doc-type)
 # ---------------------------------------------------------------------------
@@ -543,6 +598,16 @@ def walk_replace_guidance(data: dict, output: Path):
     if original is None: raise RuntimeError("No guidance template available for walk-and-replace fallback.")
     doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
     _fill_after(_h1("PURPOSE"),                  data["purpose_text"])
+    # Remove leftover template boilerplate paragraphs in PURPOSE section
+    _boilerplate_markers = [
+        "Best Practices Recommendations",  # covers smart-quote variants
+        "The Guideline applies to all employees, officers, directors",
+    ]
+    for p in list(doc.paragraphs):
+        for marker in _boilerplate_markers:
+            if marker in p.text:
+                p._element.getparent().remove(p._element)
+                break
     _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
     # GUIDELINE: intro + bullets (no title repetition)
     gi = _h1("GUIDELINE")
@@ -754,6 +819,14 @@ def render(doc_type: str, data: dict, output: str | Path,
                 f"Template lint failed with exit {lint_exit}; fallback disabled. "
                 f"Issues: {lint_report.get('issues')}"
             )
+
+    # Step 2.5: post-render cover-page fixup (Standard/Guidance text boxes + headers)
+    try:
+        cover_patches = _post_render_cover_fixup(output, data, doc_type)
+        if cover_patches:
+            report["cover_patches"] = cover_patches
+    except Exception as e:
+        report["warnings"].append(f"Cover-page fixup failed: {e}")
 
     # Step 3: optional PDF
     if pdf:

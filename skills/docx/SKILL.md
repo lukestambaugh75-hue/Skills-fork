@@ -75,6 +75,12 @@ See `skills/docx/templates/procedure_schema.json` for the full field-level schem
 
 All list-of-object fields are variable-length — the docxtpl row loops produce exactly N rows for N entries. The Notes/Caution/Warning callout block after the Steps table is static boilerplate.
 
+### Known limitations
+
+1. **Table of Contents is stale after render.** docxtpl and walk-and-replace cannot refresh TOC field codes — only Word or LibreOffice can. Tell the user: "Open the file in Word, right-click the Table of Contents, choose 'Update Field' → 'Update entire table'." The body headings are correct; only the cached TOC display is stale.
+2. **Standard / Guidance cover pages.** The Jinja templates don't yet have `{{ document_name }}` / `{{ doc_number }}` markers inside text boxes. The render pipeline works around this with `_post_render_cover_fixup()` which patches the .docx XML after render. Provide `document_name` and `doc_number` in the input JSON — these fields are now required in the schemas.
+3. **Ampersand characters** in Standard/Guidance content: the walk-and-replace path (python-docx) handles `&` correctly. If using the docxtpl path, test that `&` renders — docxtpl's Jinja autoescape can strip it.
+
 ### When to fall back to from-scratch generation
 
 Only when the user explicitly asks for a NON-procedure document type that isn't yet templated (e.g., a one-off internal memo with custom layout). For any standard governance document — procedure, standard, guidance — the template path is mandatory; it's the only way to guarantee brand chrome + structure + classification footer + embedded logo come through identically.

@@ -3,6 +3,7 @@
   "template": "Standard Template (Jinja).docx",
   "description": "Input schema for NextDecade Standard documents.",
   "required_markers": [
+    "document_name", "doc_number",
     "introduction_text", "scope_text", "governance_text",
     "exception_text", "continuous_text",
     "content_sections", "definitions", "references",
@@ -10,6 +11,8 @@
   ],
   "optional_markers": ["s", "b", "d", "ref", "rev"],
   "fields": {
+    "document_name": {"type": "string", "description": "Document title shown on the cover page and in the running header. e.g., 'Records Retention Standard'."},
+    "doc_number": {"type": "string", "description": "NextDecade document number in ORG-NTD-000010-XXX-STD-##### format. Shown on cover and in header."},
     "introduction_text": {"type": "string", "description": "INTRODUCTION paragraph (Standards use INTRODUCTION where Procedures use PURPOSE)."},
     "scope_text": {"type": "string"},
     "governance_text": {"type": "string"},

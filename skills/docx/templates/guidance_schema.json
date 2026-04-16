@@ -3,12 +3,15 @@
   "template": "Guidance Template (Jinja).docx",
   "description": "Input schema for NextDecade Guidance documents. Guidance is advisory (best-practice recommendations); shorter than Standards or Procedures — no Definitions, References, Exception, or Continuous Improvement sections.",
   "required_markers": [
+    "document_name", "doc_number",
     "purpose_text", "governance_text",
     "guideline_intro", "guideline_bullets",
     "raci", "approval", "revision_history"
   ],
   "optional_markers": ["b", "rev"],
   "fields": {
+    "document_name": {"type": "string", "description": "Document title shown on the cover page and in the running header. e.g., 'Remote Work Guidance'."},
+    "doc_number": {"type": "string", "description": "NextDecade document number in ORG-NTD-000010-XXX-GDN-##### format. Shown on cover and in header."},
     "purpose_text": {"type": "string"},
     "governance_text": {"type": "string"},
     "guideline_intro": {"type": "string", "description": "Intro paragraph of the GUIDELINE section."},
