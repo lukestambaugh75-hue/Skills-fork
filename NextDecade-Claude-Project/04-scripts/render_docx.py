@@ -65,10 +65,28 @@ def _strict_env():
     return Environment(undefined=StrictUndefined, autoescape=False)
 
 
+def _xml_escape_data(obj):
+    """Recursively escape XML-special characters (&, <, >) in string values.
+
+    docxtpl injects rendered text directly into Word XML. If the data contains
+    raw '&', '<', or '>' the XML parser fails with 'xmlParseEntityRef'. This
+    pre-escaping makes the docxtpl path safe for arbitrary user content
+    including ampersands, angle brackets, and em-dashes.
+    """
+    from xml.sax.saxutils import escape
+    if isinstance(obj, str):
+        return escape(obj)
+    if isinstance(obj, dict):
+        return {k: _xml_escape_data(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_xml_escape_data(v) for v in obj]
+    return obj
+
+
 def render_via_docxtpl(data: dict, template: Path, output: Path) -> None:
     from docxtpl import DocxTemplate
     tpl = DocxTemplate(str(template))
-    tpl.render(data, jinja_env=_strict_env())
+    tpl.render(_xml_escape_data(data), jinja_env=_strict_env())
     tpl.save(str(output))
 
 
