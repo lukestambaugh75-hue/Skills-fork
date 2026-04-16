@@ -59,9 +59,8 @@ MASTER = (
 )
 
 # Brand-family gate. The PPTX master carries parallel ND / RG / NCS layout
-# families; a deck must commit to exactly one. Callers (Claude Code, Claude
-# Projects, scripted pipelines) are required to surface the three-option pick
-# to the user BEFORE building input JSON, and to record the answer as "brand".
+# families. Single-brand decks commit to one family; corporate decks
+# (investor updates, board decks, town halls) may span all three.
 SHARED_LAYOUTS = {
     "Custom Layout",
     "1_Custom Layout",
@@ -69,42 +68,43 @@ SHARED_LAYOUTS = {
     "23_Custom Layout",
 }
 BRAND_PREFIXES = {
-    "NextDecade": "ND",
-    "RioGrandeLNG": "RG",
-    "NCS": "NCS",
+    "NextDecade": ("ND",),
+    "RioGrandeLNG": ("RG",),
+    "NCS": ("NCS",),
+    "Corporate": ("ND", "RG", "NCS"),  # multi-brand: investor/board/town-hall
 }
 
 
-def _validate_brand_and_layouts(data: dict) -> str:
+def _validate_brand_and_layouts(data: dict) -> tuple[str, ...]:
     """Enforce the brand-family gate.
 
     Requires data["brand"] to be one of BRAND_PREFIXES and every slide layout
     to be either a shared cover/disclaimer/back-cover layout or to start with
-    the declared brand prefix + " ". Raises ValueError on violation so the
-    pipeline fails loudly instead of silently mixing brand families.
+    one of the declared brand's allowed prefixes + " ".
 
-    Returns the layout prefix ("ND" / "RG" / "NCS") on success.
+    Returns the tuple of allowed prefixes on success; raises ValueError on
+    any violation so the pipeline fails loudly.
     """
     brand = data.get("brand")
     if brand not in BRAND_PREFIXES:
         raise ValueError(
             f"Input JSON must declare 'brand' as one of {sorted(BRAND_PREFIXES)}; "
             f"got {brand!r}. Ask the user which NextDecade brand the deck is for "
-            f"(NextDecade Corporate / Rio Grande LNG / NEXT Carbon Solutions) "
-            f"before rendering."
+            f"(NextDecade Corporate / Rio Grande LNG / NEXT Carbon Solutions / "
+            f"Corporate for multi-brand decks) before rendering."
         )
-    prefix = BRAND_PREFIXES[brand]
+    prefixes = BRAND_PREFIXES[brand]
     for si, slide in enumerate(data.get("slides", []), start=1):
         layout = slide.get("layout", "")
         if layout in SHARED_LAYOUTS:
             continue
-        if not layout.startswith(prefix + " "):
+        if not any(layout.startswith(p + " ") for p in prefixes):
             raise ValueError(
                 f"Slide {si}: layout {layout!r} does not match declared brand "
-                f"{brand!r} (expected a {prefix!r}-prefixed layout or one of the "
-                f"shared layouts {sorted(SHARED_LAYOUTS)})."
+                f"{brand!r} (expected a layout prefixed with one of {prefixes!r} "
+                f"or a shared layout: {sorted(SHARED_LAYOUTS)})."
             )
-    return prefix
+    return prefixes
 
 
 def _potx_to_pptx_inplace(path: Path):

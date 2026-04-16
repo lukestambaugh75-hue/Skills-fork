@@ -90,15 +90,16 @@ Revision: `0` for initial issue, `1`, `2`, `A`, `B`… for subsequent revisions.
 
 The PowerPoint master contains three parallel families of content layouts, one per brand. A deck must commit to exactly one family. **Before you draft any slide, stop and ask the user which brand the deck is for.** Do not guess from context; do not pick a family silently. Present the question as a three-option pick:
 
-1. **NextDecade Corporate** — uses `ND …` layouts
-2. **Rio Grande LNG** — uses `RG …` layouts
-3. **NEXT Carbon Solutions (NCS)** — uses `NCS …` layouts (green-dominant)
+1. **NextDecade Corporate** — uses `ND …` layouts only
+2. **Rio Grande LNG** — uses `RG …` layouts only
+3. **NEXT Carbon Solutions (NCS)** — uses `NCS …` layouts only (green-dominant)
+4. **Corporate / Multi-brand** — may use `ND`, `RG`, and `NCS` layouts in the same deck (investor updates, board decks, town halls that span all three brands)
 
 Only after the user answers may you proceed. Apply the selection consistently:
 
-- Every content slide must use a layout whose name begins with the chosen prefix (`ND`, `RG`, or `NCS`) followed by a space.
+- For options 1–3: every content slide must use a layout whose name begins with the chosen prefix followed by a space.
+- For option 4 (Corporate): slides may use `ND`, `RG`, or `NCS` layouts freely — choose the layout family that matches each slide's subject matter (e.g., `RG …` for LNG facility content, `NCS …` for carbon-solutions content, `ND …` for corporate-level content).
 - Shared layouts are allowed in any family and do not need re-asking: `Custom Layout`, `1_Custom Layout`, `Public Disclaimer`, `23_Custom Layout`.
-- If the user later asks for a slide whose natural home is a different brand (e.g., an NCS-themed stat slide inside an otherwise-ND deck), flag the mismatch and ask again rather than mixing families silently.
 
 ### Layouts and typography
 

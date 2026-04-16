@@ -18,14 +18,16 @@ Use the `AskUserQuestion` tool to surface a single-choice picker (this is the "p
   - `NextDecade Corporate` — parent/corporate deck, uses `ND …` layouts (navy/orange)
   - `Rio Grande LNG` — LNG facility deck, uses `RG …` layouts (navy/orange)
   - `NEXT Carbon Solutions (NCS)` — carbon-solutions deck, uses `NCS …` layouts (green-dominant)
+  - `Corporate / Multi-brand` — investor updates, board decks, town halls that span all three brands (may freely use `ND`, `RG`, and `NCS` layouts in the same deck)
 
 Map the answer to the layout prefix and the `"brand"` field of the `render_pptx.py` input JSON:
 
-| User selects | Layout prefix | `brand` JSON value |
+| User selects | Allowed layout prefixes | `brand` JSON value |
 |---|---|---|
-| NextDecade Corporate | `ND ` | `"NextDecade"` |
-| Rio Grande LNG | `RG ` | `"RioGrandeLNG"` |
-| NEXT Carbon Solutions (NCS) | `NCS ` | `"NCS"` |
+| NextDecade Corporate | `ND ` only | `"NextDecade"` |
+| Rio Grande LNG | `RG ` only | `"RioGrandeLNG"` |
+| NEXT Carbon Solutions (NCS) | `NCS ` only | `"NCS"` |
+| Corporate / Multi-brand | `ND `, `RG `, `NCS ` (all three) | `"Corporate"` |
 
 Shared layouts allowed in every family (no re-asking needed): `Custom Layout`, `1_Custom Layout`, `Public Disclaimer`, `23_Custom Layout`.
 
@@ -33,8 +35,9 @@ Rules:
 
 1. Do not pick a brand family on the user's behalf — even if the topic (e.g., "LNG export permit") strongly suggests one. Ask.
 2. If the user has already explicitly stated the brand earlier in the current conversation, you may skip the pop-up; otherwise ask.
-3. Every content slide you emit must use a layout whose name starts with the chosen prefix followed by a space, or must be one of the four shared layouts above. `render_pptx.py` enforces this and will raise `ValueError` on mismatch.
+3. Every content slide you emit must use a layout matching the declared brand's allowed prefixes, or must be one of the four shared layouts above. `render_pptx.py` enforces this and will raise `ValueError` on mismatch.
 4. External decks must still include the `Public Disclaimer` slide verbatim (Forward-Looking Statements) — the brand pick does not change that requirement.
+5. For Corporate / Multi-brand decks, choose each slide's layout family to match its subject matter: `RG …` for LNG facility content, `NCS …` for carbon-solutions content, `ND …` for corporate-level content.
 
 See `NextDecade-Claude-Project/04-scripts/render_pptx.py` for the input-JSON shape and the validator (`_validate_brand_and_layouts`).
 

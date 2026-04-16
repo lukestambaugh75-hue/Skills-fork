@@ -75,20 +75,42 @@ def _set_subtitle_row(ws, row, text, n_cols, color=ORANGE):
 
 
 def _set_chrome(ws):
-    """Apply NDLNG chrome: footer mission line + classification footer, page margins."""
+    """Apply NDLNG chrome: footer mission line + classification footer, page margins, freeze."""
     ws.page_margins = PageMargins(left=0.75, right=0.75, top=0.75, bottom=0.9,
                                   header=0.3, footer=0.3)
     ws.print_options.horizontalCentered = True
     ws.sheet_view.showGridLines = False
+    # Freeze top two rows (title + subtitle or title + header)
+    ws.freeze_panes = "A3"
+    # Print repeat rows 1-2 on every page
+    ws.print_title_rows = "1:2"
     hf: HeaderFooter = ws.HeaderFooter
     hf.oddHeader.center.text = "&\"Segoe UI\"&10&KFC7134" + "NextDecade Corporation"
     hf.oddFooter.left.text = "&\"Segoe UI\"&8&K595959" + MISSION_FOOTER
     hf.oddFooter.center.text = "&\"Segoe UI\"&8&K595959" + CLASSIFICATION_FOOTER
     hf.oddFooter.right.text = "&\"Segoe UI\"&8&K595959" + "Page &P of &N"
+    # Ensure default font is Segoe UI (openpyxl defaults to Calibri for unstyled cells)
+    if ws.parent.iso_dates is not None or True:  # always apply
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row,
+                                min_col=1, max_col=ws.max_column):
+            for cell in row:
+                if cell.font and cell.font.name in (None, "Calibri"):
+                    cell.font = Font(name=FONT_NAME, size=cell.font.size or 11,
+                                     bold=cell.font.bold, italic=cell.font.italic,
+                                     color=cell.font.color)
+
+
+def _set_workbook_default_font(wb):
+    """Set the workbook default font to Segoe UI so unstyled/merged cells don't fall back to Calibri."""
+    for ns in wb._named_styles:
+        if ns.name == "Normal":
+            ns.font = Font(name=FONT_NAME, size=11)
+            break
 
 
 def build_kpi_dashboard(output: Path):
     wb = Workbook()
+    _set_workbook_default_font(wb)
     # --- Sheet 1: Summary ---
     ws = wb.active
     ws.title = "Summary"
@@ -251,6 +273,7 @@ def build_kpi_dashboard(output: Path):
 
 def build_financial_model(output: Path):
     wb = Workbook()
+    _set_workbook_default_font(wb)
 
     # Assumptions sheet
     ws = wb.active

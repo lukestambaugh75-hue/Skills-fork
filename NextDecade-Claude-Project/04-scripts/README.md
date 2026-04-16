@@ -42,13 +42,14 @@ python render_pptx.py deck_input.json output.pptx --pdf
 }
 ```
 
-**`brand` is required** and must be one of `"NextDecade"`, `"RioGrandeLNG"`, or `"NCS"`. It gates which layout prefix is allowed for non-shared slides:
+**`brand` is required** and must be one of `"NextDecade"`, `"RioGrandeLNG"`, `"NCS"`, or `"Corporate"`. It gates which layout prefix is allowed for non-shared slides:
 
 | `brand` | Allowed content-layout prefix |
 |---|---|
 | `NextDecade` | `ND …` |
 | `RioGrandeLNG` | `RG …` |
 | `NCS` | `NCS …` |
+| `Corporate` | `ND …`, `RG …`, `NCS …` (all three — for investor/board/town-hall decks) |
 
 Shared layouts allowed in any family: `Custom Layout`, `1_Custom Layout`, `Public Disclaimer`, `23_Custom Layout`. Any other layout whose prefix doesn't match the declared brand raises `ValueError` before rendering — this enforces the ask-first brand-family gate described in `skills/pptx/SKILL.md` and `NextDecade-Claude-Project/CLAUDE-INSTRUCTIONS.md`.
 
