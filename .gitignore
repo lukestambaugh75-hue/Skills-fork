@@ -6,6 +6,9 @@ __pycache__/
 output/iter*/
 output/final/
 
+# Pre-rendered showcase (not loaded by skill at runtime)
+skills/theme-factory/theme-showcase.pdf
+
 # Generated sample binaries (rebuild via samples/_build/ scripts)
 samples/document-types-validation/01-governance-docx/
 samples/document-types-validation/02-business-docx/
