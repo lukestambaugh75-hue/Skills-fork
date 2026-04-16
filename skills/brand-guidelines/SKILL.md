@@ -1,73 +1,94 @@
 ---
 name: brand-guidelines
-description: Applies Anthropic's official brand colors and typography to any sort of artifact that may benefit from having Anthropic's look-and-feel. Use it when brand colors or style guidelines, visual formatting, or company design standards apply.
+description: Applies NextDecade Corporation's official brand colors, typography, and voice rules to any artifact. Use it when brand colors, style guidelines, visual formatting, classification footers, or company design standards apply. Covers all three brand families — NextDecade Corporate, Rio Grande LNG, and NEXT Carbon Solutions (NCS).
 license: Complete terms in LICENSE.txt
 ---
 
-# Anthropic Brand Styling
+# NextDecade Brand Styling
 
 ## Overview
 
-To access Anthropic's official brand identity and style resources, use this skill.
+Use this skill to apply NextDecade's official brand identity to documents, presentations, spreadsheets, and communications.
 
-**Keywords**: branding, corporate identity, visual identity, post-processing, styling, brand colors, typography, Anthropic brand, visual formatting, visual design
+**Keywords**: branding, corporate identity, visual identity, styling, brand colors, typography, NextDecade brand, visual formatting, visual design, NDLNG, Rio Grande LNG, NCS
 
-## Brand Guidelines
+## Brand Architecture
 
-### Colors
+Three brands, each with its own logo and color emphasis:
 
-**Main Colors:**
+| Brand | Short code | Primary surface colors |
+|---|---|---|
+| **NextDecade Corporate** | (parent) | White / Navy / Orange |
+| **Rio Grande LNG** | RGLNG | White / Navy / Orange |
+| **NEXT Carbon Solutions** | NCS | White / Green |
 
-- Dark: `#141413` - Primary text and dark backgrounds
-- Light: `#faf9f5` - Light backgrounds and text on dark
-- Mid Gray: `#b0aea5` - Secondary elements
-- Light Gray: `#e8e6dc` - Subtle backgrounds
+**Naming rules**: Never abbreviate the parent as "ND" or "NEXT". "NEXT" refers only to the NASDAQ ticker.
 
-**Accent Colors:**
+## Colors (never substitute)
 
-- Orange: `#d97757` - Primary accent
-- Blue: `#6a9bcc` - Secondary accent
-- Green: `#788c5d` - Tertiary accent
+### Primary Palette
 
-### Typography
+| Role | Hex | RGB | Pantone | Use |
+|---|---|---|---|---|
+| Navy | `#002060` | 0, 32, 96 | 534 C | Primary headers, fills, chart series 1, titles |
+| Orange | `#FC7134` | 252, 113, 52 | 1645 C | Accent, call-outs, chart series 2, highlights |
+| Green | `#00B050` | 0, 176, 80 | 361 C | NCS brand, positive variance, chart series 3 |
 
-- **Headings**: Poppins (with Arial fallback)
-- **Body Text**: Lora (with Georgia fallback)
-- **Note**: Fonts should be pre-installed in your environment for best results
+### Supporting Colors
 
-## Features
+| Role | Hex | RGB | Use |
+|---|---|---|---|
+| White | `#FFFFFF` | 255, 255, 255 | Text on dark fills, default backgrounds |
+| Black | `#000000` | 0, 0, 0 | Body text |
+| Light gray | `#F2F2F2` | 242, 242, 242 | Banded-row alternate fill |
+| Mid gray | `#A5A5A5` | 165, 165, 165 | Borders, grid emphasis |
 
-### Smart Font Application
+## Typography
 
-- Applies Poppins font to headings (24pt and larger)
-- Applies Lora font to body text
-- Automatically falls back to Arial/Georgia if custom fonts unavailable
-- Preserves readability across all systems
+- **Primary font**: Segoe UI (everywhere)
+- **Fallback**: Calibri 11pt (only if Segoe UI unavailable)
+- **Never use**: Times New Roman, Arial (as primary), Aptos
 
-### Text Styling
+| Element | Font | Size |
+|---|---|---|
+| Document/sheet titles | Segoe UI Bold | 14pt |
+| Slide titles | Segoe UI Bold | 36-44pt |
+| Column headers | Segoe UI Bold | 11pt |
+| Body text | Segoe UI | 11pt |
+| Slide body | Segoe UI | 14-16pt |
+| Captions | Segoe UI | 10-12pt |
 
-- Headings (24pt+): Poppins font
-- Body text: Lora font
-- Smart color selection based on background
-- Preserves text hierarchy and formatting
+## Voice (two registers)
 
-### Shape and Accent Colors
+| Audience | Register | Markers |
+|---|---|---|
+| Internal (employees, NEXT digest, town halls) | Casual | Contractions ("it's", "we've"), "us / we / our", relatable tone |
+| External (public, investors, media, regulators) | Formal | No contractions ("it is"), "NextDecade Corporation", "NextDecade engineers", spell out "Rio Grande LNG" |
 
-- Non-text shapes use accent colors
-- Cycles through orange, blue, and green accents
-- Maintains visual interest while staying on-brand
+## Corporate Identity
 
-## Technical Details
+| Item | Value |
+|---|---|
+| Legal entity | NextDecade Corporation |
+| Tagline | "Delivering Energy for What's NEXT" |
+| HQ | 1000 Louisiana Street, Suite 3900, Houston, Texas 77002 USA |
+| Website | www.next-decade.com |
+| Ticker | NASDAQ: NEXT |
 
-### Font Management
+## Mandatory Boilerplate
 
-- Uses system-installed Poppins and Lora fonts when available
-- Provides automatic fallback to Arial (headings) and Georgia (body)
-- No font installation required - works with existing system fonts
-- For best results, pre-install Poppins and Lora fonts in your environment
+### Classification Footer (every internal document)
 
-### Color Application
+> Confidential and Proprietary -- This document is intended solely for internal use. Unauthorized disclosure, distribution, or reproduction is strictly prohibited.
 
-- Uses RGB color values for precise brand matching
-- Applied via python-pptx's RGBColor class
-- Maintains color fidelity across different systems
+### Forward-Looking Statements
+
+Required on slide 2 of every external-facing deck. Use the verbatim language from the Public Disclaimer layout of the PowerPoint master template.
+
+## Style Rules
+
+- **Acronyms**: Spell out on first reference with parenthetical, abbreviate thereafter
+- **Dates**: `Jan. 5, 2026` (4-digit year always; March/April/May/June/July never abbreviated)
+- **Time**: `10 a.m. -- 2 p.m.` (lowercase with periods)
+- **Employee titles**: Always capitalized in all positions
+- **Units**: MMBtu, MTPA, Bcf/d

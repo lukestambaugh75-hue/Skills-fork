@@ -1,28 +1,109 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "2.0.0",
   "template": "Standard Template (Jinja).docx",
-  "description": "Input schema for NextDecade Standard documents.",
+  "source_template": "Standard Template.docx",
+  "description": "Input schema for NextDecade Standard documents. Standards define mandatory levels of quality and expectations. Section order: INTRODUCTION, SCOPE, INTEGRATED GOVERNANCE FRAMEWORK, DEFINITIONS, REFERENCES, content section(s), EXCEPTION REQUEST, CONTINUOUS IMPROVEMENT, OWNERSHIP, APPROVAL, REVISION HISTORY. Pass a dict matching this shape to render_docx.render('standard', data, output).",
   "required_markers": [
-    "document_name", "doc_number",
-    "introduction_text", "scope_text", "governance_text",
-    "exception_text", "continuous_text",
-    "content_sections", "definitions", "references",
-    "raci", "approval", "revision_history"
+    "document_name",
+    "doc_number",
+    "introduction_text",
+    "scope_text",
+    "governance_text",
+    "exception_text",
+    "continuous_text",
+    "content_sections",
+    "definitions",
+    "references",
+    "raci",
+    "approval",
+    "revision_history"
   ],
   "optional_markers": ["s", "b", "d", "ref", "rev"],
   "fields": {
-    "document_name": {"type": "string", "description": "Document title shown on the cover page and in the running header. e.g., 'Records Retention Standard'."},
-    "doc_number": {"type": "string", "description": "NextDecade document number in ORG-NTD-000010-XXX-STD-##### format. Shown on cover and in header."},
-    "introduction_text": {"type": "string", "description": "INTRODUCTION paragraph (Standards use INTRODUCTION where Procedures use PURPOSE)."},
-    "scope_text": {"type": "string"},
-    "governance_text": {"type": "string"},
-    "exception_text": {"type": "string"},
-    "continuous_text": {"type": "string"},
-    "definitions": {"type": "list[object]", "item_shape": {"no": "string", "term": "string", "definition": "string"}},
-    "references": {"type": "list[object]", "item_shape": {"title": "string", "number": "string"}},
-    "content_sections": {"type": "list[object]", "item_shape": {"title": "string", "intro": "string", "bullets": "list[string]"}},
-    "raci": {"type": "object", "shape": {"responsible": "string", "accountable": "string", "consulted": "string", "informed": "string"}},
-    "approval": {"type": "object", "shape": {"issuer": "string", "adopted_by": "string", "effective_date": "string"}},
-    "revision_history": {"type": "list[object]", "item_shape": {"number": "string", "description": "string"}}
+    "document_name": {
+      "type": "string",
+      "description": "Document title shown on the cover page and in the running header. Use the same casing as the governance document registry. e.g., 'Records Retention Standard', 'Hot Work Safety Standard'."
+    },
+    "doc_number": {
+      "type": "string",
+      "description": "NextDecade document number in the format ORG-NTD-000010-XXX-STD-#####. XXX = functional area (HSE, SAF, SEC, OPS, etc.). Shown on cover and in header."
+    },
+    "introduction_text": {
+      "type": "string",
+      "description": "INTRODUCTION section body. Single paragraph. Standards use INTRODUCTION (not PURPOSE). State the mandatory expectation this standard sets. e.g., 'This Standard establishes the minimum requirements for records retention across all NextDecade operations.'"
+    },
+    "scope_text": {
+      "type": "string",
+      "description": "SCOPE section body. Single paragraph. Identify which facilities, operations, and workforce members are covered. NextDecade boilerplate: 'This standard applies to all facilities owned or operated by NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), or any other affiliated entity.'"
+    },
+    "governance_text": {
+      "type": "string",
+      "description": "INTEGRATED GOVERNANCE FRAMEWORK section body. Single paragraph. Explain how this standard fits into the broader NextDecade governance structure (Standards, Procedures, Guidance)."
+    },
+    "exception_text": {
+      "type": "string",
+      "description": "EXCEPTION REQUEST AND COMPLIANCE AUDITS section body. Describe the process for requesting exceptions and how compliance is audited."
+    },
+    "continuous_text": {
+      "type": "string",
+      "description": "CONTINUOUS IMPROVEMENT AND REVIEW section body. State the review cycle and how the standard is updated."
+    },
+    "content_sections": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "One or more content sections between REFERENCES and EXCEPTION REQUEST. Each section becomes a Heading 1 with an intro paragraph and bulleted requirements.",
+      "item_shape": {
+        "title": "string — section heading text (e.g., 'Records Classification', 'Retention Periods')",
+        "intro": "string — introductory paragraph for the section",
+        "bullets": "list[string] — one bullet per requirement or sub-item"
+      }
+    },
+    "definitions": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the Definitions table (3 columns: No. / Term / Definition).",
+      "item_shape": {
+        "no": "string — sequential number (e.g., '1', '2')",
+        "term": "string — the defined term (e.g., 'Workforce', 'Governance Framework')",
+        "definition": "string — the full definition"
+      }
+    },
+    "references": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the References table (2 columns: Title / Document Number).",
+      "item_shape": {
+        "title": "string — full title of the referenced document",
+        "number": "string — NextDecade doc number or 'External'"
+      }
+    },
+    "raci": {
+      "type": "object",
+      "description": "RACI matrix for the document. Single row with four responsibility assignments.",
+      "shape": {
+        "responsible": "string — role/team responsible for execution",
+        "accountable": "string — role/team accountable for outcomes",
+        "consulted": "string — role/team consulted during development",
+        "informed": "string — role/team informed of decisions"
+      }
+    },
+    "approval": {
+      "type": "object",
+      "description": "Approval block at the end of the document.",
+      "shape": {
+        "issuer": "string — issuer name and title (e.g., 'VP of HSSE')",
+        "adopted_by": "string — adopting entity (typically 'NextDecade Corporation')",
+        "effective_date": "string — effective or amended date (e.g., 'April 15, 2026')"
+      }
+    },
+    "revision_history": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "Rows of the Revision History table (2 columns: Revision / Description of Changes and Notes).",
+      "item_shape": {
+        "number": "string — revision number or letter (e.g., '0', '1', 'A')",
+        "description": "string — what changed in this revision (e.g., 'Initial issue', 'Updated retention periods')"
+      }
+    }
   }
 }

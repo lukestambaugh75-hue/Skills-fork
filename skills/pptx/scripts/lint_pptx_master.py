@@ -18,9 +18,10 @@ from __future__ import annotations
 import sys, json, zipfile, re
 from pathlib import Path
 
-DEFAULT_MASTER = Path(
-    "/home/user/Skills-fork/NextDecade-Claude-Project/02-templates/"
-    "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_MASTER = (
+    _REPO_ROOT / "NextDecade-Claude-Project" / "02-templates"
+    / "NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx"
 )
 
 REQUIRED_LAYOUTS = [
