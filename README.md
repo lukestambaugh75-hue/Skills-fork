@@ -1,3 +1,47 @@
+# Enterprise Use (read first)
+
+This repository is a fork of Anthropic's public [`anthropics/skills`](https://github.com/anthropics/skills) marketplace. Inside our company it is the **canonical source** for three things:
+
+1. **Agent skills** shipped to our enterprise Claude deployment.
+2. **`SKILL.md` authoring standards** — the format every skill we ship must follow.
+3. **Markdown / documentation standards** — the base style rules for company documentation. Skills in this repo are the reference examples.
+
+For the full tour (what each item is, guardrails, rollout checklist), read [`ENTERPRISE_OVERVIEW.md`](./ENTERPRISE_OVERVIEW.md).
+
+## Upstream relationship
+
+We pull from Anthropic upstream. Do **not** rewrite the bodies of upstream skills in place — that makes future merges painful. Instead:
+
+- **Add** new company skills under `skills/<slug>/` and list them in `.claude-plugin/marketplace.json`.
+- **Override** behaviour by forking a skill into a new directory (e.g. `skills/internal-comms-acme/`) rather than editing the upstream copy.
+- **Sync cadence and owner** are tracked in `ENTERPRISE_OVERVIEW.md`.
+
+## Adding a new company skill
+
+1. Copy [`./template`](./template) to `skills/<your-slug>/`.
+2. Fill in `name`, `description`, and `license` in the frontmatter. For `description`, **new** company skills should use explicit `TRIGGER when: …` / `DO NOT TRIGGER when: …` clauses — see [`skills/claude-api/SKILL.md`](./skills/claude-api/SKILL.md) as the canonical example. Most upstream Anthropic skills predate this pattern and use informal "Use when …" phrasing; that is fine and does not need to be rewritten.
+3. Add the skill path to the appropriate plugin block in `.claude-plugin/marketplace.json`.
+4. Open a PR. Reviews are owned by the Skills maintainers (set in `CODEOWNERS` when that file is added — see rollout checklist in `ENTERPRISE_OVERVIEW.md`).
+
+## Required SKILL.md frontmatter
+
+The upstream Agent Skills spec only requires `name` and `description`. Our enterprise standard extends that with a required `license` field so every shipped skill is explicit about its redistribution terms. (If you read the "Creating a Basic Skill" section further down — that's the upstream minimum; the table below is what we ship.)
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | yes | Lowercase, hyphenated. **Must** match the directory name. |
+| `description` | yes | Full sentence(s). New skills should include explicit trigger / non-trigger clauses so Claude fires the skill accurately. |
+| `license` | yes (enterprise) | `Complete terms in LICENSE.txt` for Apache-2.0 skills; `Proprietary. LICENSE.txt has complete terms` for source-available document skills. Keep the LICENSE.txt file beside the SKILL.md. |
+| `allowed-tools` | optional | Scope tool access if the skill must run under a restricted allowlist. |
+
+## License split (important)
+
+- `skills/docx`, `skills/pdf`, `skills/pptx`, `skills/xlsx` are **source-available / proprietary** — not Apache-2.0. They power Claude's document capabilities and must not be redistributed as open source.
+- All other skills are **Apache-2.0**.
+- See [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) for the bundled third-party obligations (fonts, FFmpeg, Pillow, etc.).
+
+---
+
 > **Note:** This repository contains Anthropic's implementation of skills for Claude. For information about the Agent Skills standard, see [agentskills.io](http://agentskills.io).
 
 # Skills
@@ -60,7 +104,7 @@ You can use Anthropic's pre-built skills, and upload custom skills, via the Clau
 
 # Creating a Basic Skill
 
-Skills are simple to create - just a folder with a `SKILL.md` file containing YAML frontmatter and instructions. You can use the **template-skill** in this repository as a starting point:
+Skills are simple to create - just a folder with a `SKILL.md` file containing YAML frontmatter and instructions. You can use the skill in [`./template`](./template) as a starting point:
 
 ```markdown
 ---
