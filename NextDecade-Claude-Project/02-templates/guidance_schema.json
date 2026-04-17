@@ -4,8 +4,6 @@
   "source_template": "Guidance Template.docx",
   "description": "Input schema for NextDecade Guidance documents. Guidance is advisory (best-practice recommendations). Shorter than Standards or Procedures — no Definitions, References, Exception Request, or Continuous Improvement sections. Section order: PURPOSE, INTEGRATED GOVERNANCE FRAMEWORK, GUIDELINE (intro + bullets), OWNERSHIP, APPROVAL, REVISION HISTORY. Pass a dict matching this shape to render_docx.render('guidance', data, output).",
   "required_markers": [
-    "document_name",
-    "doc_number",
     "purpose_text",
     "governance_text",
     "guideline_intro",
@@ -14,6 +12,11 @@
     "approval",
     "revision_history"
   ],
+  "post_render_markers": [
+    "document_name",
+    "doc_number"
+  ],
+  "_post_render_markers_note": "document_name and doc_number are required input fields but are NOT Jinja markers in the template. They are applied after render via _post_render_cover_fixup which patches plain-text placeholders (NAME, xxx-xxx-xxx-xxx-xxx-#####) in the cover-page text boxes and headers.",
   "optional_markers": ["b", "rev"],
   "fields": {
     "document_name": {

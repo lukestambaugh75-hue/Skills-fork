@@ -1516,33 +1516,36 @@ from pathlib import Path
 sys.path.insert(0, "skills/docx/scripts")
 import render_docx
 
-inp = "samples/document-types-validation/_inputs/records-retention-standard.json"
-if not Path(inp).exists():
-    print("WARN scaffolding-test: standard sample input not found — skipping")
-    sys.exit(0)
 try:
     import docxtpl  # noqa: F401
 except ImportError:
     print("WARN scaffolding-test: docxtpl not installed — skipping")
     sys.exit(0)
 
-with open(inp) as f:
-    data = json.load(f)
+markers = ["[CONTENT TITLE]", "Enter text here", "Click here to enter text"]
 
-with tempfile.TemporaryDirectory() as td:
-    out = Path(td) / "standard_scaffolding_test.docx"
-    render_docx.render("standard", data, out)
-    # Extract all text from rendered docx
-    with zipfile.ZipFile(out) as z:
-        all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
-                           for n in z.namelist()
-                           if n.startswith("word/") and n.endswith(".xml"))
-    markers = ["[CONTENT TITLE]", "Enter text here", "Click here to enter text"]
-    found = [m for m in markers if m in all_xml]
-    if found:
-        print(f"FAIL scaffolding-removal: markers still present in rendered output: {found}")
-    else:
-        print("PASS scaffolding-removal: no scaffolding markers in rendered standard output")
+cases = [
+    ("standard",  "samples/document-types-validation/_inputs/records-retention-standard.json"),
+    ("guidance",  "samples/document-types-validation/_inputs/remote-work-guidance.json"),
+]
+for dt, inp in cases:
+    if not Path(inp).exists():
+        print(f"WARN scaffolding-test: {dt} sample input not found — skipping")
+        continue
+    with open(inp) as f:
+        data = json.load(f)
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / f"{dt}_scaffolding_test.docx"
+        render_docx.render(dt, data, out)
+        with zipfile.ZipFile(out) as z:
+            all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
+                               for n in z.namelist()
+                               if n.startswith("word/") and n.endswith(".xml"))
+        found = [m for m in markers if m in all_xml]
+        if found:
+            print(f"FAIL scaffolding-removal: {dt} — markers still present: {found}")
+        else:
+            print(f"PASS scaffolding-removal: no scaffolding markers in rendered {dt} output")
 PY
 while IFS= read -r line; do
     if [[ "$line" == PASS\ * ]]; then
