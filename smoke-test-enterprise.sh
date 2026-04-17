@@ -1048,13 +1048,22 @@ for entry in "${VALIDATION_INPUTS[@]}"; do
 import json
 schema = json.load(open('$schema_file'))
 sample = json.load(open('$input_file'))
+# Check required_markers (Jinja template markers)
 required = schema.get('required_markers', [])
 missing = [r for r in required if r not in sample]
 if missing:
     for m in missing:
-        print(f'FAIL:$dtype input missing required field: {m}')
+        print(f'FAIL:$dtype input missing required Jinja field: {m}')
 else:
-    print(f'OK:$dtype input has all {len(required)} required fields')
+    print(f'OK:$dtype input has all {len(required)} required Jinja fields')
+# Check post_render_markers (handled by _post_render_cover_fixup, not Jinja)
+post = schema.get('post_render_markers', [])
+missing_post = [r for r in post if r not in sample]
+if missing_post:
+    for m in missing_post:
+        print(f'FAIL:$dtype input missing post-render field: {m}')
+elif post:
+    print(f'OK:$dtype input has all {len(post)} post-render fields ({post})')
 " 2>&1 | while IFS= read -r line; do
             case "$line" in
                 OK:*)   pass "${line#OK:}" ;;
