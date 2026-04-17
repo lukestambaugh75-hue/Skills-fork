@@ -359,14 +359,22 @@ fi
 # =============================================================================
 section "10. Binary bloat check — large tracked files"
 # =============================================================================
+# Threshold is 10MB. Files between 5-10MB are expected (PPTX templates, POTX
+# masters, reference PDFs). Files over 10MB are unexpected and should be
+# distributed via GitHub Releases instead of committed to the repo.
+# Known intentional tracked binaries (5-10MB):
+#   NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx  ~6MB
+#   NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf   ~5MB
+#   HSSE Flash Template.pptx                                       ~5MB
+#   Hot Work Safety Moment.pptx                                    ~6MB
 
-echo "  Listing tracked binary files > 5MB..."
+echo "  Listing tracked binary files > 10MB..."
 BLOAT_COUNT=0
 while IFS= read -r fpath; do
     [ -z "$fpath" ] && continue
     if [ -f "$fpath" ]; then
         size=$(stat -c%s "$fpath" 2>/dev/null || stat -f%z "$fpath" 2>/dev/null || echo 0)
-        if [ "$size" -gt 5242880 ]; then
+        if [ "$size" -gt 10485760 ]; then
             size_mb=$(( size / 1048576 ))
             warn "large tracked file (${size_mb}MB): $fpath"
             BLOAT_COUNT=$((BLOAT_COUNT + 1))
@@ -374,7 +382,7 @@ while IFS= read -r fpath; do
     fi
 done < <(git ls-files 2>/dev/null)
 if [ "$BLOAT_COUNT" -eq 0 ]; then
-    pass "No tracked files exceed 5MB"
+    pass "No tracked files exceed 10MB (expected template binaries are under threshold)"
 fi
 
 # =============================================================================
