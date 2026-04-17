@@ -364,6 +364,28 @@ for script_name in render_docx.py render_pptx.py lint_docx_template.py lint_pptx
     fi
 done
 
+# Verify render_pptx.py imports successfully (catches broken import chains)
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_pptx', 'skills/pptx/scripts/render_pptx.py')
+try:
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if hasattr(mod, 'render'):
+        print('OK:render_pptx.py imports successfully, render() present')
+    else:
+        print('WARN:render_pptx.py imports but render() function not found')
+except Exception as e:
+    print(f'FAIL:render_pptx.py import failed: {e}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
 # =============================================================================
 section "9. Hardcoded path audit"
 # =============================================================================
