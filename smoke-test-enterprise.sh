@@ -271,6 +271,29 @@ for schema_name in procedure_schema.json standard_schema.json guidance_schema.js
     fi
 done
 
+# Verify schema source_template fields reference existing files in 03-original-templates/
+python3 -c "
+import json, os
+orig = 'NextDecade-Claude-Project/03-original-templates'
+for name in ('procedure', 'standard', 'guidance'):
+    schema = json.load(open(f'skills/docx/templates/{name}_schema.json'))
+    src = schema.get('source_template', '')
+    if not src:
+        print(f'WARN:{name}_schema.json has no source_template field')
+        continue
+    path = os.path.join(orig, src)
+    if os.path.exists(path):
+        print(f'OK:{name} source_template exists: {src}')
+    else:
+        print(f'WARN:{name} source_template not found: {src} (check 03-original-templates/)')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
 # =============================================================================
 section "7. NextDecade-Claude-Project bundle — critical files present"
 # =============================================================================
@@ -341,6 +364,28 @@ for script_name in render_docx.py render_pptx.py lint_docx_template.py lint_pptx
     fi
 done
 
+# Verify render_pptx.py imports successfully (catches broken import chains)
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_pptx', 'skills/pptx/scripts/render_pptx.py')
+try:
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    if hasattr(mod, 'render'):
+        print('OK:render_pptx.py imports successfully, render() present')
+    else:
+        print('WARN:render_pptx.py imports but render() function not found')
+except Exception as e:
+    print(f'FAIL:render_pptx.py import failed: {e}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
 # =============================================================================
 section "9. Hardcoded path audit"
 # =============================================================================
@@ -359,14 +404,22 @@ fi
 # =============================================================================
 section "10. Binary bloat check — large tracked files"
 # =============================================================================
+# Threshold is 10MB. Files between 5-10MB are expected (PPTX templates, POTX
+# masters, reference PDFs). Files over 10MB are unexpected and should be
+# distributed via GitHub Releases instead of committed to the repo.
+# Known intentional tracked binaries (5-10MB):
+#   NextDecade PowerPoint Master (Oct 2025, brand-corrected).potx  ~6MB
+#   NextDecade PowerPoint Master (Oct 2025, brand-corrected).pdf   ~5MB
+#   HSSE Flash Template.pptx                                       ~5MB
+#   Hot Work Safety Moment.pptx                                    ~6MB
 
-echo "  Listing tracked binary files > 5MB..."
+echo "  Listing tracked binary files > 10MB..."
 BLOAT_COUNT=0
 while IFS= read -r fpath; do
     [ -z "$fpath" ] && continue
     if [ -f "$fpath" ]; then
         size=$(stat -c%s "$fpath" 2>/dev/null || stat -f%z "$fpath" 2>/dev/null || echo 0)
-        if [ "$size" -gt 5242880 ]; then
+        if [ "$size" -gt 10485760 ]; then
             size_mb=$(( size / 1048576 ))
             warn "large tracked file (${size_mb}MB): $fpath"
             BLOAT_COUNT=$((BLOAT_COUNT + 1))
@@ -374,7 +427,7 @@ while IFS= read -r fpath; do
     fi
 done < <(git ls-files 2>/dev/null)
 if [ "$BLOAT_COUNT" -eq 0 ]; then
-    pass "No tracked files exceed 5MB"
+    pass "No tracked files exceed 10MB (expected template binaries are under threshold)"
 fi
 
 # =============================================================================
@@ -396,24 +449,25 @@ else
 fi
 
 echo ""
-echo "  Other files NOT required for a fresh skills-only upload:"
+echo "  Tracked files/dirs NOT required for a fresh skills-only upload:"
 
 NOT_NEEDED_FOR_UPLOAD=(
-    "Use this to share.zip"
     "samples/document-types-validation"
     "output/final"
     ".claude/plans"
     "skills/theme-factory/theme-showcase.pdf"
 )
 for item in "${NOT_NEEDED_FOR_UPLOAD[@]}"; do
-    if [ -e "$item" ]; then
+    # Only warn if the item is actually tracked by git (not just present on disk)
+    if git ls-files --error-unmatch "$item" > /dev/null 2>&1 || \
+       [ -n "$(git ls-files "$item" 2>/dev/null)" ]; then
         if [ -d "$item" ]; then
             item_size=$(du -sm "$item" 2>/dev/null | cut -f1)
-            warn "removable for fresh upload: $item/ (${item_size}MB dir)"
-        else
+            warn "tracked but removable for fresh upload: $item/ (${item_size}MB dir)"
+        elif [ -f "$item" ]; then
             size=$(stat -c%s "$item" 2>/dev/null || stat -f%z "$item" 2>/dev/null || echo 0)
             size_mb=$(( size / 1048576 ))
-            warn "removable for fresh upload: $item (${size_mb}MB)"
+            warn "tracked but removable for fresh upload: $item (${size_mb}MB)"
         fi
     fi
 done
@@ -842,10 +896,11 @@ for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
 done
 
 # =============================================================================
-section "25. Render pipeline dry-run — import check with dependencies"
+section "25. Render pipeline dry-run — import check + strict-only design verification"
 # =============================================================================
-# Try to import render_docx.py and verify the DOC_TYPES registry is populated.
-# This catches missing template files or broken import chains at parse time.
+# Import render_docx.py, verify DOC_TYPES is populated, templates/schemas
+# exist, and confirm the strict-only design: no fallback registry, no lenient
+# renderer, no fallback key in any DOC_TYPES entry.
 
 python3 -c "
 import sys, importlib.util, os
@@ -869,13 +924,26 @@ try:
                 print(f'OK:{dt} schema found: {schema.name}')
             else:
                 print(f'FAIL:{dt} schema missing: {schema}')
-            # Check fallback function exists
-            fb_name = cfg.get('fallback', '')
-            fb_fns = getattr(mod, 'FALLBACK_FNS', {})
-            if fb_name in fb_fns:
-                print(f'OK:{dt} fallback function registered: {fb_name}')
+            # Strict-only: no fallback key should exist in any DOC_TYPES entry
+            if 'fallback' in cfg:
+                print(f'FAIL:{dt} unexpected fallback key in DOC_TYPES cfg (strict-only design)')
             else:
-                print(f'FAIL:{dt} fallback function missing: {fb_name}')
+                print(f'OK:{dt} no fallback key in DOC_TYPES cfg (strict-only confirmed)')
+    # Verify FALLBACK_FNS registry was removed
+    if hasattr(mod, 'FALLBACK_FNS'):
+        print('FAIL:FALLBACK_FNS registry still present — should be absent in strict-only design')
+    else:
+        print('OK:FALLBACK_FNS registry absent (strict-only design confirmed)')
+    # Verify lenient renderer was removed
+    if hasattr(mod, 'render_via_docxtpl_lenient'):
+        print('FAIL:render_via_docxtpl_lenient still present — should be absent in strict-only design')
+    else:
+        print('OK:render_via_docxtpl_lenient absent (strict-only design confirmed)')
+    # Verify strict renderer exists
+    if hasattr(mod, 'render_via_docxtpl'):
+        print('OK:render_via_docxtpl present (strict renderer)')
+    else:
+        print('FAIL:render_via_docxtpl missing — primary render function not found')
 except Exception as e:
     print(f'FAIL:render_docx.py import failed: {e}')
 " 2>&1 | while IFS= read -r line; do
@@ -887,36 +955,40 @@ except Exception as e:
 done
 
 # =============================================================================
-section "26. Walk-and-replace fallback — definitions table column mismatch"
+section "26. Schema definitions shape — Procedure vs Standard compatibility"
 # =============================================================================
-# Known bug: _std_proc_table_plans assumes 3-column Definitions (No/Term/Def)
-# for Standard, but Procedure uses 2-column (Term/Def). Verify the schemas
-# actually have different definitions shapes so the code is correct.
+# The strict render path uses StrictUndefined, so if a schema field exists in
+# one doc type but not another, and a template accidentally references the wrong
+# field, it raises immediately. Verify that shared fields have compatible shapes
+# across Procedure and Standard schemas so the render pipeline can use the same
+# data structure for both.
 
 python3 -c "
 import json
 proc = json.load(open('skills/docx/templates/procedure_schema.json'))
 std  = json.load(open('skills/docx/templates/standard_schema.json'))
+gdn  = json.load(open('skills/docx/templates/guidance_schema.json'))
 
-proc_defs = proc.get('fields', {}).get('definitions', {})
-std_defs  = std.get('fields', {}).get('definitions', {})
+for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
+    defs = schema.get('fields', {}).get('definitions', {})
+    items = defs.get('items', {})
+    keys = sorted(items.keys()) if isinstance(items, dict) else []
+    if keys:
+        print(f'INFO:{name} definitions item keys: {keys}')
+    else:
+        print(f'INFO:{name} definitions: list-of-strings or not present in schema fields')
 
-proc_items = proc_defs.get('items', {})
-std_items  = std_defs.get('items', {})
-
-proc_keys = sorted(proc_items.keys()) if isinstance(proc_items, dict) else []
-std_keys  = sorted(std_items.keys()) if isinstance(std_items, dict) else []
-
-print(f'INFO:Procedure definitions item keys: {proc_keys}')
-print(f'INFO:Standard definitions item keys: {std_keys}')
-
-if proc_keys == std_keys:
-    print('OK:definitions schemas have identical item shapes')
-elif set(std_keys) - set(proc_keys):
-    extra = set(std_keys) - set(proc_keys)
-    print(f'WARN:Standard definitions has extra fields vs Procedure: {extra} — render_docx.py _std_proc_table_plans must handle this')
-else:
-    print(f'WARN:definitions schemas differ: proc={proc_keys}, std={std_keys}')
+# Verify schemas have the same revision_history shape (shared critical field)
+for field in ['revision_history', 'raci', 'approval']:
+    shapes = {}
+    for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
+        f = schema.get('fields', {}).get(field, {})
+        if f:
+            shapes[name] = f.get('type', 'unknown')
+    if len(set(shapes.values())) == 1:
+        print(f'OK:shared field \"{field}\" same type across all schemas ({list(shapes.values())[0]})')
+    elif shapes:
+        print(f'WARN:shared field \"{field}\" type mismatch: {shapes}')
 " 2>&1 | while IFS= read -r line; do
     case "$line" in
         OK:*)   pass "${line#OK:}" ;;
@@ -976,13 +1048,22 @@ for entry in "${VALIDATION_INPUTS[@]}"; do
 import json
 schema = json.load(open('$schema_file'))
 sample = json.load(open('$input_file'))
+# Check required_markers (Jinja template markers)
 required = schema.get('required_markers', [])
 missing = [r for r in required if r not in sample]
 if missing:
     for m in missing:
-        print(f'FAIL:$dtype input missing required field: {m}')
+        print(f'FAIL:$dtype input missing required Jinja field: {m}')
 else:
-    print(f'OK:$dtype input has all {len(required)} required fields')
+    print(f'OK:$dtype input has all {len(required)} required Jinja fields')
+# Check post_render_markers (handled by _post_render_cover_fixup, not Jinja)
+post = schema.get('post_render_markers', [])
+missing_post = [r for r in post if r not in sample]
+if missing_post:
+    for m in missing_post:
+        print(f'FAIL:$dtype input missing post-render field: {m}')
+elif post:
+    print(f'OK:$dtype input has all {len(post)} post-render fields ({post})')
 " 2>&1 | while IFS= read -r line; do
             case "$line" in
                 OK:*)   pass "${line#OK:}" ;;
@@ -1004,12 +1085,9 @@ echo "  skills-only upload (they are examples, dev artifacts, or build outputs):
 echo ""
 
 NOT_NEEDED=(
-    "Use this to share.zip:Flattened shareable bundle — use GitHub Releases instead"
     ".claude/plans:Development planning docs — not runtime"
     "samples/document-types-validation:Validation sample set — rebuild via _build/ scripts"
     "output/final:Generated example outputs — add to .gitignore"
-    "output/iter:Iteration outputs — already gitignored"
-    "skills/theme-factory/theme-showcase.pdf:Pre-rendered showcase — already gitignored"
     "SMOKE-TEST-FINDINGS.md:Previous smoke test findings — superseded by this script"
     "extracted-specs.md:Claude-readable brand distillation — useful for Claude Projects but not for skill upload"
     "gap-report.md:Gap analysis — useful for Claude Projects but not for skill upload"
@@ -1019,7 +1097,14 @@ NOT_NEEDED=(
 NN_FOUND=0
 for entry in "${NOT_NEEDED[@]}"; do
     IFS=':' read -r item reason <<< "$entry"
-    if [ -e "$item" ]; then
+    # Only count items that are tracked by git (gitignored/untracked items are already handled)
+    is_tracked=0
+    if [ -d "$item" ] && [ -n "$(git ls-files "$item" 2>/dev/null)" ]; then
+        is_tracked=1
+    elif [ -f "$item" ] && git ls-files --error-unmatch "$item" > /dev/null 2>&1; then
+        is_tracked=1
+    fi
+    if [ "$is_tracked" -eq 1 ]; then
         if [ -d "$item" ]; then
             item_size=$(du -sm "$item" 2>/dev/null | cut -f1)
             echo "    [${item_size:-?}MB dir] $item/"
@@ -1034,9 +1119,9 @@ for entry in "${NOT_NEEDED[@]}"; do
 done
 echo ""
 if [ "$NN_FOUND" -gt 0 ]; then
-    warn "$NN_FOUND items identified as removable for a clean skills-only upload"
+    warn "$NN_FOUND tracked items are removable for a clean skills-only upload"
 else
-    pass "No removable items found — repo is already lean"
+    pass "No tracked removable items — repo is lean for fresh upload"
 fi
 
 # =============================================================================
@@ -1045,14 +1130,18 @@ section "30. NextDecade-Claude-Project/04-scripts — canonical copy check"
 # The 04-scripts/ directory duplicates scripts from skills/docx/scripts/ and
 # skills/pptx/scripts/. Verify they're byte-identical so users don't get
 # different behavior depending on which copy they run.
+#
+# Legitimate per-copy differences (stripped before diff):
+#   render_docx.py: TEMPLATES path (skills/docx/templates vs 02-templates)
+#   render_docx.py: NOTE comment about path constants differing
+#   render_pptx.py: TEMPLATES path similarly
+# UPLOADS and _REPO_ROOT constants were removed in the strict-only refactor;
+# the grep pattern is kept for safety in case they're re-added.
 
 SCRIPT_PAIRS=(
     "skills/docx/scripts/render_docx.py:NextDecade-Claude-Project/04-scripts/render_docx.py"
     "skills/pptx/scripts/render_pptx.py:NextDecade-Claude-Project/04-scripts/render_pptx.py"
 )
-# Path constants MUST differ between skills/ and 04-scripts/ because the files
-# live in different directories. Strip known path-constant lines before comparing
-# so only functional divergence is flagged.
 for pair in "${SCRIPT_PAIRS[@]}"; do
     IFS=':' read -r canonical dupe <<< "$pair"
     if [ -f "$canonical" ] && [ -f "$dupe" ]; then
@@ -1070,18 +1159,16 @@ for pair in "${SCRIPT_PAIRS[@]}"; do
 done
 
 # =============================================================================
-section "31. Template-is-sole-source-of-formatting invariant (procedure + standard)"
+section "31. Template-is-sole-source-of-formatting invariant + strict-only API surface"
 # =============================================================================
 # NextDecade policy: the DOCX template is the authoritative source of
-# typography, colors, margins, headers, footers. Both render paths (docxtpl
-# strict AND walk_replace lenient) must produce output whose theme1.xml and
-# Heading 1 color match the template exactly. Any drift means a renderer is
-# introducing formatting that the template doesn't specify -- a policy
-# violation.
+# typography, colors, margins, headers, footers. The strict docxtpl render
+# must produce output whose theme1.xml and Heading 1 color match the template
+# exactly. Any drift means a renderer is introducing formatting that the
+# template doesn't specify -- a policy violation.
 #
-# This test renders each sample through both paths and compares the output's
-# theme-font and Heading 1 color against the source Jinja template.
-# Guidance is intentionally out of scope (separate decision per user).
+# This test also verifies the strict-only API surface: walk_replace_* functions
+# must NOT exist on the module (removed in the strict-only refactor).
 
 python3 - <<'PY' > /tmp/step31_out.txt 2>&1 || true
 import sys, json, re, zipfile, tempfile
@@ -1097,39 +1184,563 @@ def fingerprint(docx_path):
     h1 = re.search(r'<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:color[^/]*w:val="([0-9A-Fa-f]+)"', styles, re.DOTALL)
     return (maj.group(1) if maj else None, h1.group(1).upper() if h1 else None)
 
+# Verify walk_replace_* functions have been removed (strict-only design)
+for fn_name in ("walk_replace_procedure", "walk_replace_standard", "walk_replace_guidance"):
+    if hasattr(render_docx, fn_name):
+        print(f"FAIL {fn_name} still present — must be removed in strict-only design")
+    else:
+        print(f"PASS {fn_name} absent (strict-only API surface confirmed)")
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN formatting-invariant render skipped: docxtpl not installed (pip install docxtpl)")
+    sys.exit(0)
+
 cases = [
     ("procedure", "skills/docx/templates/Procedure Template (Jinja).docx",
      "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"),
     ("standard",  "skills/docx/templates/Standard Template (Jinja).docx",
      "samples/document-types-validation/_inputs/records-retention-standard.json"),
+    ("guidance",  "skills/docx/templates/Guidance Template (Jinja).docx",
+     "samples/document-types-validation/_inputs/remote-work-guidance.json"),
 ]
 with tempfile.TemporaryDirectory() as td:
     for dt, tpl, inp in cases:
+        if not Path(inp).exists():
+            print(f"WARN {dt}-strict: sample input not found ({inp}) — skipping render")
+            continue
         tpl_fp = fingerprint(tpl)
         with open(inp) as f: data = json.load(f)
-        out_happy = Path(td) / f"{dt}_happy.docx"
-        render_docx.render(dt, data, out_happy)
-        fp_happy = fingerprint(out_happy)
-        out_fb = Path(td) / f"{dt}_fallback.docx"
-        fn = render_docx.walk_replace_procedure if dt == "procedure" else render_docx.walk_replace_standard
-        fn(data, out_fb)
-        fp_fb = fingerprint(out_fb)
-        for label, fp in (("happy", fp_happy), ("fallback", fp_fb)):
-            if fp == tpl_fp:
-                print(f"PASS {dt}-{label}: output formatting matches template ({tpl_fp[0]}, H1={tpl_fp[1]})")
-            else:
-                print(f"FAIL {dt}-{label}: template={tpl_fp} output={fp}")
+        out_strict = Path(td) / f"{dt}_strict.docx"
+        render_docx.render(dt, data, out_strict)
+        fp_strict = fingerprint(out_strict)
+        if fp_strict == tpl_fp:
+            print(f"PASS {dt}-strict: output formatting matches template ({tpl_fp[0]}, H1={tpl_fp[1]})")
+        else:
+            print(f"FAIL {dt}-strict: template={tpl_fp} output={fp_strict}")
 PY
 while IFS= read -r line; do
     if [[ "$line" == PASS\ * ]]; then
         pass "${line#PASS }"
     elif [[ "$line" == FAIL\ * ]]; then
         fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
     fi
 done < /tmp/step31_out.txt
 
 # =============================================================================
+section "32. StrictUndefined enforcement — render raises on missing required key"
+# =============================================================================
+# Core invariant of the strict-only design: render_via_docxtpl must raise an
+# UndefinedError (not silently produce empty output) when a required Jinja
+# marker is absent from the input data. This test renders a procedure with one
+# required key deliberately removed and asserts an exception is raised.
+
+python3 - <<'PY' > /tmp/step32_out.txt 2>&1 || true
+import sys, json, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN strict-undefined-test: sample input not found — skipping")
+    sys.exit(0)
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN strict-undefined-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+# Remove a required key that the Jinja template definitely references
+truncated = {k: v for k, v in data.items() if k != "procedure_title"}
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "strict_test.docx"
+    try:
+        render_docx.render("procedure", truncated, out)
+        print("FAIL strict-undefined: render succeeded with missing key (StrictUndefined not enforced!)")
+    except Exception as e:
+        err = str(e)
+        if "procedure_title" in err or "UndefinedError" in type(e).__name__ or "Undefined" in type(e).__name__ or "undefined" in err.lower():
+            print(f"PASS strict-undefined: render raised on missing 'procedure_title' ({type(e).__name__})")
+        else:
+            print(f"PASS strict-undefined: render raised on missing key ({type(e).__name__}: {err[:80]})")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step32_out.txt
+
+# =============================================================================
+section "33. Lint failure raises — no silent render when template is broken"
+# =============================================================================
+# Verify that render() raises RuntimeError when the linter returns exit code 3
+# (unrecoverable template damage). In the strict-only design there is no
+# fallback path — a broken template must block rendering entirely.
+# We mock this by temporarily pointing at a non-existent schema file so the
+# linter subprocess returns non-zero, then check render() raises.
+
+python3 - <<'PY' > /tmp/step33_out.txt 2>&1 || true
+import sys, json, tempfile, unittest.mock
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN lint-raises-test: sample input not found — skipping")
+    sys.exit(0)
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN lint-raises-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+# Simulate a lint failure by patching subprocess.run to return exit code 3
+import subprocess, types
+
+orig_run = subprocess.run
+
+def fake_run(cmd, **kwargs):
+    if str(render_docx.LINTER) in str(cmd):
+        r = types.SimpleNamespace()
+        r.returncode = 3
+        r.stdout = '{}'
+        r.stderr = ''
+        return r
+    return orig_run(cmd, **kwargs)
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "lint_fail_test.docx"
+    with unittest.mock.patch.object(subprocess, 'run', side_effect=fake_run):
+        try:
+            render_docx.render("procedure", data, out)
+            print("FAIL lint-raises: render succeeded despite lint exit=3 (no fallback guard!)")
+        except RuntimeError as e:
+            if "lint" in str(e).lower() or "template" in str(e).lower():
+                print(f"PASS lint-raises: render raised RuntimeError on lint failure ({str(e)[:80]})")
+            else:
+                print(f"PASS lint-raises: render raised RuntimeError ({str(e)[:80]})")
+        except Exception as e:
+            print(f"PASS lint-raises: render raised {type(e).__name__} on lint failure")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step33_out.txt
+
+# =============================================================================
+section "34. API surface audit — back-compat shims and dead functions removed"
+# =============================================================================
+# Verify the public API of render_docx.py is clean after the strict-only
+# refactor: no back-compat shims, no walk-replace helpers, no dead code that
+# could confuse callers or mask regressions.
+
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_docx', 'skills/docx/scripts/render_docx.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+# Functions that MUST exist (public API)
+must_exist = ['render', 'render_via_docxtpl', 'convert_to_pdf']
+for fn in must_exist:
+    if hasattr(mod, fn):
+        print(f'OK:{fn} present in public API')
+    else:
+        print(f'FAIL:{fn} missing from public API')
+
+# Functions that MUST NOT exist (removed in strict-only refactor)
+must_not_exist = [
+    'render_procedure',           # back-compat shim
+    'render_via_docxtpl_lenient', # lenient renderer
+    'walk_replace_procedure',     # walk-and-replace fallbacks
+    'walk_replace_standard',
+    'walk_replace_guidance',
+    '_wr_common_setup',           # walk-and-replace helpers
+    '_wr_fill_content_sections',
+    '_wr_fill_tables',
+    '_table_plans_common',
+    '_table_plans_guidance',
+    '_resolve_original',          # only used by walk-replace
+    'FALLBACK_FNS',               # fallback registry
+]
+for fn in must_not_exist:
+    if hasattr(mod, fn):
+        print(f'FAIL:{fn} still present — should have been removed in strict-only refactor')
+    else:
+        print(f'OK:{fn} absent (clean API surface)')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
+section "35. XML escape safety — _xml_escape_data handles &, <, > in all types"
+# =============================================================================
+# _xml_escape_data is the safety guard between user input and Word XML.
+# If it fails to escape a single & or < in any nested string, the rendered
+# .docx XML will be malformed. Verify the function handles strings, dicts,
+# lists, and nested structures.
+
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_docx', 'skills/docx/scripts/render_docx.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+fn = mod._xml_escape_data
+
+# String escaping
+cases = [
+    ('ampersand', 'A & B', 'A &amp; B'),
+    ('less-than', 'A < B', 'A &lt; B'),
+    ('greater-than', 'A > B', 'A &gt; B'),
+    ('combined', 'A & B < C > D', 'A &amp; B &lt; C &gt; D'),
+    ('safe string', 'Hello World', 'Hello World'),
+    ('number passthrough', 42, 42),
+    ('none passthrough', None, None),
+]
+for label, inp, expected in cases:
+    result = fn(inp)
+    if result == expected:
+        print(f'OK:escape {label}: {repr(inp)!r} -> {repr(result)!r}')
+    else:
+        print(f'FAIL:escape {label}: expected {repr(expected)!r}, got {repr(result)!r}')
+
+# Dict recursion
+d = {'title': 'A & B', 'nested': {'text': '1 < 2'}}
+r = fn(d)
+if r == {'title': 'A &amp; B', 'nested': {'text': '1 &lt; 2'}}:
+    print('OK:escape dict recursive: nested dict escaped correctly')
+else:
+    print(f'FAIL:escape dict recursive: {r}')
+
+# List recursion
+lst = ['A & B', 'C < D', 42]
+r = fn(lst)
+if r == ['A &amp; B', 'C &lt; D', 42]:
+    print('OK:escape list recursive: list items escaped correctly')
+else:
+    print(f'FAIL:escape list recursive: {r}')
+
+# List-of-dicts (content_sections shape used by Standard)
+content_sections = [
+    {'title': 'A & B Policy', 'intro': 'Values < 10', 'bullets': ['Item 1 & 2', 'Item > 3']},
+    {'title': 'Safe Title', 'intro': 'No special chars', 'bullets': ['Bullet only']},
+]
+r2 = fn(content_sections)
+expected_cs = [
+    {'title': 'A &amp; B Policy', 'intro': 'Values &lt; 10', 'bullets': ['Item 1 &amp; 2', 'Item &gt; 3']},
+    {'title': 'Safe Title', 'intro': 'No special chars', 'bullets': ['Bullet only']},
+]
+if r2 == expected_cs:
+    print('OK:escape list-of-dicts (content_sections): all nested strings escaped correctly')
+else:
+    print(f'FAIL:escape list-of-dicts: expected {expected_cs!r}, got {r2!r}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
+# =============================================================================
+section "36. _post_render_cover_fixup — patches NAME and doc number in Standard"
+# =============================================================================
+# _post_render_cover_fixup does targeted XML search-and-replace inside the
+# rendered .docx zip to fill in cover-page text boxes that Jinja cannot reach.
+# Test: copy the Jinja template, inject a fake render, call fixup, verify
+# placeholders were replaced.
+
+python3 - <<'PY' > /tmp/step36_out.txt 2>&1 || true
+import sys, zipfile, shutil, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+tpl = Path("skills/docx/templates/Standard Template (Jinja).docx")
+if not tpl.exists():
+    print("WARN cover-fixup-test: Standard template not found — skipping")
+    sys.exit(0)
+
+with tempfile.TemporaryDirectory() as td:
+    # Copy template as the "rendered" output (it contains the placeholder strings)
+    out = Path(td) / "standard_fixup_test.docx"
+    shutil.copy2(tpl, out)
+
+    data = {"document_name": "Hot Work Safety", "doc_number": "ND-HSSE-001-2026"}
+    patches = render_docx._post_render_cover_fixup(out, data, "standard")
+
+    if patches:
+        print(f"PASS cover-fixup standard: {len(patches)} placeholder(s) patched")
+        with zipfile.ZipFile(out) as z:
+            all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
+                               for n in z.namelist()
+                               if n.startswith("word/") and n.endswith(".xml"))
+        if "Hot Work Safety" in all_xml:
+            print("PASS cover-fixup standard: document_name present in patched XML")
+        else:
+            print("FAIL cover-fixup standard: document_name not found in patched XML")
+        if "ND-HSSE-001-2026" in all_xml:
+            print("PASS cover-fixup standard: doc_number present in patched XML")
+        else:
+            print("FAIL cover-fixup standard: doc_number not found in patched XML")
+    else:
+        print("WARN cover-fixup standard: no patches applied (placeholders may have changed in template)")
+
+# Guidance cover fixup
+tpl_g = Path("skills/docx/templates/Guidance Template (Jinja).docx")
+if not tpl_g.exists():
+    print("WARN cover-fixup guidance: Guidance template not found — skipping")
+    sys.exit(0)
+
+with tempfile.TemporaryDirectory() as td2:
+    out_g = Path(td2) / "guidance_fixup_test.docx"
+    shutil.copy2(tpl_g, out_g)
+
+    data_g = {"document_name": "Remote Work Safety", "doc_number": "ND-HSSE-002-2026"}
+    patches_g = render_docx._post_render_cover_fixup(out_g, data_g, "guidance")
+
+    if patches_g:
+        print(f"PASS cover-fixup guidance: {len(patches_g)} placeholder(s) patched")
+        with zipfile.ZipFile(out_g) as z:
+            all_xml_g = " ".join(z.read(n).decode("utf-8", errors="replace")
+                                 for n in z.namelist()
+                                 if n.startswith("word/") and n.endswith(".xml"))
+        if "Remote Work Safety" in all_xml_g:
+            print("PASS cover-fixup guidance: document_name present in patched XML")
+        else:
+            print("FAIL cover-fixup guidance: document_name not found in patched XML")
+        if "ND-HSSE-002-2026" in all_xml_g:
+            print("PASS cover-fixup guidance: doc_number present in patched XML")
+        else:
+            print("FAIL cover-fixup guidance: doc_number not found in patched XML")
+    else:
+        print("WARN cover-fixup guidance: no patches applied (placeholders may have changed in template)")
+
+# Procedure cover fixup must be a no-op (procedures use Jinja markers, not XML patching)
+tpl_p = Path("skills/docx/templates/Procedure Template (Jinja).docx")
+if tpl_p.exists():
+    with tempfile.TemporaryDirectory() as td3:
+        out_p = Path(td3) / "procedure_fixup_test.docx"
+        shutil.copy2(tpl_p, out_p)
+        data_p = {"document_name": "Should Not Patch", "doc_number": "ND-NOOP-000"}
+        patches_p = render_docx._post_render_cover_fixup(out_p, data_p, "procedure")
+        if patches_p:
+            print(f"FAIL cover-fixup procedure: expected no patches but got {len(patches_p)}: {patches_p}")
+        else:
+            print("PASS cover-fixup procedure: no patches applied (procedure uses Jinja markers, not XML fixup)")
+else:
+    print("WARN cover-fixup procedure: Procedure template not found — skipping")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step36_out.txt
+
+# =============================================================================
+section "37. _remove_template_scaffolding — known markers absent in rendered output"
+# =============================================================================
+# After a full render, the scaffolding markers ("[CONTENT TITLE]", "Enter text
+# here", "Click here to enter text") should have been replaced by Jinja content
+# and any survivors should have been removed by _remove_template_scaffolding.
+# Test: render the Standard sample and verify no scaffolding markers survive.
+
+python3 - <<'PY' > /tmp/step37_out.txt 2>&1 || true
+import sys, json, tempfile, zipfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN scaffolding-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+markers = ["[CONTENT TITLE]", "Enter text here", "Click here to enter text"]
+
+cases = [
+    ("standard",  "samples/document-types-validation/_inputs/records-retention-standard.json"),
+    ("guidance",  "samples/document-types-validation/_inputs/remote-work-guidance.json"),
+]
+for dt, inp in cases:
+    if not Path(inp).exists():
+        print(f"WARN scaffolding-test: {dt} sample input not found — skipping")
+        continue
+    with open(inp) as f:
+        data = json.load(f)
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / f"{dt}_scaffolding_test.docx"
+        render_docx.render(dt, data, out)
+        with zipfile.ZipFile(out) as z:
+            all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
+                               for n in z.namelist()
+                               if n.startswith("word/") and n.endswith(".xml"))
+        found = [m for m in markers if m in all_xml]
+        if found:
+            print(f"FAIL scaffolding-removal: {dt} — markers still present: {found}")
+        else:
+            print(f"PASS scaffolding-removal: no scaffolding markers in rendered {dt} output")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step37_out.txt
+
+# =============================================================================
+section "38. render() raises ValueError on unknown doc_type"
+# =============================================================================
+# render() is the single entry point — it must raise a clear ValueError for
+# any unsupported doc_type rather than silently producing garbage output.
+# This prevents misuse and makes pipeline errors debuggable.
+
+python3 - <<'PY' > /tmp/step38_out.txt 2>&1 || true
+import sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "bad_type.docx"
+    try:
+        render_docx.render("invoice", {}, out)
+        print("FAIL unknown-doc-type: render succeeded with unknown doc_type 'invoice'")
+    except ValueError as e:
+        if "invoice" in str(e) or "Unknown" in str(e):
+            print(f"PASS unknown-doc-type: ValueError raised for 'invoice' ({str(e)[:80]})")
+        else:
+            print(f"PASS unknown-doc-type: ValueError raised ({str(e)[:80]})")
+    except Exception as e:
+        print(f"FAIL unknown-doc-type: wrong exception type {type(e).__name__}: {e}")
+
+# Also verify the supported doc_types are exactly {procedure, standard, guidance}
+expected_types = {"procedure", "standard", "guidance"}
+actual_types = set(render_docx.DOC_TYPES.keys())
+if actual_types == expected_types:
+    print(f"PASS doc-types-registry: exactly {sorted(expected_types)} registered")
+else:
+    print(f"FAIL doc-types-registry: expected {sorted(expected_types)}, got {sorted(actual_types)}")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step38_out.txt
+
+# =============================================================================
+section "39. render() return dict — required report keys present"
+# =============================================================================
+# render() returns a report dict. Callers depend on specific keys being
+# present: doc_type, output, path, lint. Verifies the contract so callers
+# don't get silent KeyError failures.
+
+python3 - <<'PY' > /tmp/step39_out.txt 2>&1 || true
+import sys, json, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN render-report: docxtpl not installed — skipping")
+    sys.exit(0)
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN render-report: sample input not found — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "report_test.docx"
+    report = render_docx.render("procedure", data, out)
+
+    required_keys = ["doc_type", "output", "path", "lint"]
+    missing = [k for k in required_keys if k not in report]
+    if missing:
+        print(f"FAIL render-report: missing keys in report: {missing}")
+    else:
+        print(f"PASS render-report: all required keys present ({required_keys})")
+
+    # Verify specific values
+    if report.get("doc_type") == "procedure":
+        print("PASS render-report: doc_type='procedure' correct")
+    else:
+        print(f"FAIL render-report: doc_type expected 'procedure', got {report.get('doc_type')!r}")
+
+    if report.get("path") == "docxtpl":
+        print("PASS render-report: path='docxtpl' (strict renderer confirmed)")
+    else:
+        print(f"FAIL render-report: path expected 'docxtpl', got {report.get('path')!r}")
+
+    lint = report.get("lint", {})
+    if isinstance(lint, dict) and "exit" in lint and "issue_count" in lint:
+        print(f"PASS render-report: lint sub-dict has expected shape (exit={lint['exit']})")
+    else:
+        print(f"FAIL render-report: lint sub-dict malformed: {lint!r}")
+
+    if out.exists():
+        print("PASS render-report: output file exists on disk")
+    else:
+        print("FAIL render-report: output file not created")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step39_out.txt
+
 # =============================================================================
 _reconcile_counters
 

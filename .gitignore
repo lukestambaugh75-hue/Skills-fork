@@ -16,6 +16,10 @@ samples/document-types-validation/03-pptx/
 samples/document-types-validation/04-xlsx/
 samples/document-types-validation/05-internal-comms/
 
+# Shareable distribution archive (use GitHub Releases instead)
+Use this to share.zip
+*.zip
+
 # Secrets / credentials
 .env
 .env.*
