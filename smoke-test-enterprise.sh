@@ -1598,6 +1598,50 @@ while IFS= read -r line; do
 done < /tmp/step37_out.txt
 
 # =============================================================================
+section "38. render() raises ValueError on unknown doc_type"
+# =============================================================================
+# render() is the single entry point — it must raise a clear ValueError for
+# any unsupported doc_type rather than silently producing garbage output.
+# This prevents misuse and makes pipeline errors debuggable.
+
+python3 - <<'PY' > /tmp/step38_out.txt 2>&1 || true
+import sys, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "bad_type.docx"
+    try:
+        render_docx.render("invoice", {}, out)
+        print("FAIL unknown-doc-type: render succeeded with unknown doc_type 'invoice'")
+    except ValueError as e:
+        if "invoice" in str(e) or "Unknown" in str(e):
+            print(f"PASS unknown-doc-type: ValueError raised for 'invoice' ({str(e)[:80]})")
+        else:
+            print(f"PASS unknown-doc-type: ValueError raised ({str(e)[:80]})")
+    except Exception as e:
+        print(f"FAIL unknown-doc-type: wrong exception type {type(e).__name__}: {e}")
+
+# Also verify the supported doc_types are exactly {procedure, standard, guidance}
+expected_types = {"procedure", "standard", "guidance"}
+actual_types = set(render_docx.DOC_TYPES.keys())
+if actual_types == expected_types:
+    print(f"PASS doc-types-registry: exactly {sorted(expected_types)} registered")
+else:
+    print(f"FAIL doc-types-registry: expected {sorted(expected_types)}, got {sorted(actual_types)}")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step38_out.txt
+
+# =============================================================================
 _reconcile_counters
 
 # =============================================================================
