@@ -6,9 +6,9 @@ Read this before using, editing, or rolling out this repository.
 
 ## TL;DR
 
-- **What this repo is:** a fork of Anthropic's public [`anthropics/skills`](https://github.com/anthropics/skills) marketplace, repurposed as our company's canonical source for agent skills and for the Markdown / `SKILL.md` authoring standard we will apply to enterprise documentation.
-- **Who it is for:** anyone inside the company who writes a skill, writes documentation that should follow the same patterns, or decides what our enterprise Claude can invoke.
-- **Before rollout:** complete the eight items in [Gaps before rollout](#gaps-before-rollout). The repo is content-ready; ownership, sync policy, and marketplace metadata still need company-specific decisions.
+- **What this repo is:** a fork of Anthropic's public [`anthropics/skills`](https://github.com/anthropics/skills) marketplace, extended with a **NextDecade Corporation document-rendering pipeline** (Jinja-tagged DOCX / PPTX templates, a render pipeline, validation samples, and a drop-in Claude Project bundle). It is our company's canonical source for agent skills, the `SKILL.md` authoring standard, and the brand-compliant document generation workflow.
+- **Who it is for:** anyone inside the company who drafts a NextDecade governance document, presentation, internal email, or branded spreadsheet; writes or edits a skill; or sets the Markdown standard that all of the above share.
+- **Before rollout:** review [Gaps before rollout](#gaps-before-rollout). The repo is content-ready; ownership, sync policy, and marketplace metadata still need company-specific decisions.
 
 ---
 
@@ -57,6 +57,17 @@ The full commit log is short (28 commits) and tells a clear story:
 | `template/SKILL.md` | Starter template for new skills. Re-authored during this audit to model the enterprise standard. |
 | `THIRD_PARTY_NOTICES.md` | License notices for bundled third-party assets (fonts, FFmpeg, Pillow, imageio). Required for the document skills. |
 | `.gitignore` | Standard OS/IDE ignores. |
+| `NextDecade-Claude-Project/` | Drop-in bundle for Claude.ai Projects — brand references, Jinja templates, original Word sources, Python render scripts, and a full sample set. See [§5 NextDecade pipeline](#5-nextdecade-document-pipeline). |
+| `NEXTDECADE-TEMPLATE.md` | Short guide describing the procedure/standard/guidance template system. |
+| `samples/` | Sample inputs + rendered outputs used to validate the render pipeline across every document type. See `samples/document-types-validation/`. |
+| `test-inputs/` | JSON input files you can drop in and render with the `render_docx.py` / `render_pptx.py` scripts. `test-inputs/README.md` shows exact commands. |
+| `smoke-test-enterprise.sh` | Executable, ~74 KB. End-to-end smoke test that exercises the render pipeline and skills integration. Read before running. |
+| `requirements.txt` | Python dependencies for the render pipeline (`docxtpl`, `python-docx`, `python-pptx`, Pillow, etc.). Install with `pip install -r requirements.txt`. |
+| `extracted-specs.md` | Machine-readable distillation of the NextDecade Brand & Style Guidelines and Writing Style Guide PDFs. Claude reads this directly. |
+| `gap-report.md` | Known gaps between current templates and the extracted spec. Maintain it as gaps are closed. |
+| `SMOKE-TEST-FINDINGS.md` | Cumulative log of smoke-test runs (29 runs captured). Treat as append-only test history. |
+| `notes to pick up for April 16.md` | Work-in-progress notes. Roll into `gap-report.md` and delete once resolved. |
+| `.claude/` | Claude Code workspace settings for this repo. |
 
 ---
 
@@ -95,7 +106,65 @@ These power Claude's production document capabilities. They are **proprietary / 
 
 ---
 
-## 5. Guardrails
+## 5. NextDecade document pipeline
+
+This is the company-specific layer built on top of the skills. It turns a JSON input into a fully brand-compliant Word / PowerPoint / Excel file. Two deployment modes:
+
+- **Claude.ai Projects (web, no-code)** — upload the `NextDecade-Claude-Project/` bundle into a Claude Project and chat. Claude drafts content on-brand but does not run scripts. Good for "I need a procedure on X" ad hoc drafting.
+- **Claude Code (CLI/desktop, fully automated)** — run `render_docx.py` / `render_pptx.py` on a JSON input and get a `.docx` / `.pptx` out. Good for repeatable, CI-friendly document generation.
+
+### 5.1 `NextDecade-Claude-Project/` (the drop-in bundle)
+
+Follow `NextDecade-Claude-Project/START-HERE.md` step-by-step. Summary:
+
+| Subfolder | Contents | Role |
+|---|---|---|
+| `01-brand-references/` | Brand & Style Guidelines 2024 PDF, Writing Style Guide & Resources 2024 PDF. | Canonical colors, fonts, voice. Pair with `extracted-specs.md` + `gap-report.md`. |
+| `02-templates/` | Jinja-tagged DOCX templates (Procedure Rev 1, Standard, Guidance), the PowerPoint master (Oct 2025, brand-corrected), the HSSE Flash template, JSON schemas, a `README.md`. | Production templates Claude uses when drafting. |
+| `03-original-templates/` | Un-tagged source Word/PowerPoint files. | Editable in Word if structure needs to change. Re-lint after edits. |
+| `04-scripts/` | `render_docx.py`, `render_pptx.py`, `extract_docx.py`, `lint_docx_template.py`, `lint_pptx_master.py`, `README.md`. | Only used in Claude Code mode. |
+| `05-samples/` | Complete Hot Work example set: Procedure + Standard + Guidance (docx + pdf), Safety Moment deck (pptx + pdf), All-Hands Email, Permit Tracker, `input-example.json`. | Few-shot examples for Claude. |
+| `CLAUDE-INSTRUCTIONS.md` | Custom-instructions text you paste into the Claude Project settings. | Encodes brand identity, voice registers, document structures. |
+| `START-HERE.md` | The 3-step setup guide for a new user. | Read first. |
+| `PROJECT-SELFTEST.md` | Checks that confirm the bundle is wired correctly. | Run after upload. |
+
+### 5.2 Render pipeline (Claude Code mode)
+
+Entry points under `NextDecade-Claude-Project/04-scripts/` (duplicated under `skills/docx/scripts/` and `skills/pptx/scripts/` for skill-marketplace use):
+
+| Script | Input | Output | Notes |
+|---|---|---|---|
+| `render_docx.py procedure\|standard\|guidance input.json output.docx [--pdf]` | JSON matching the matching `*_schema.json` | `.docx` (and optional `.pdf`) | Pipeline: lint → `docxtpl` fast path → walk-and-replace fallback. |
+| `render_pptx.py input.json output.pptx` | JSON | `.pptx` | Uses the Oct 2025 PowerPoint master. |
+| `extract_docx.py source.docx` | `.docx` (existing NextDecade doc) | JSON dict | Converts an existing doc back into the render-pipeline input shape. |
+| `lint_docx_template.py template.docx schema.json` | Jinja-tagged template | Exit 0 / 2 / 3 | 0 = clean, 2 = warnings (still renders), 3 = errors (falls back). Run after every Word edit to a Jinja template. |
+| `lint_pptx_master.py master.potx` | PowerPoint master | Exit 0 / 1 | Check slide-layout integrity. |
+| `build_procedure_jinja.py` | `.docx` | Jinja-tagged `.docx` | One-time: converts an un-tagged procedure into a render-ready template. |
+
+Install deps: `pip install -r requirements.txt`. Then drop JSON into `test-inputs/` and run the commands in `test-inputs/README.md`.
+
+### 5.3 Validation sets
+
+- `samples/document-types-validation/` — breadth sweep. **One of every document type** (governance DOCX × 3, business DOCX × 5, PPTX × 3, XLSX × 2, internal-comms × 2) so every render path is exercised head-to-head against the extracted specs. See `samples/document-types-validation/README.md` for the full index.
+- `NextDecade-Claude-Project/05-samples/` — depth sweep on one subject (Hot Work). Complete example set that teaches Claude "what good looks like" for one topic.
+
+### 5.4 Specs & gap tracking
+
+- `extracted-specs.md` — machine-readable NDLNG brand + governance specifications distilled from the two brand PDFs. Claude reads this directly; humans use it to reason about which rule a given render must satisfy.
+- `gap-report.md` — known gaps between templates and spec. Update as each gap is closed. Track the Aptos-vs-Segoe-UI theme inconsistency, the three unreached governance templates, and anything else flagged during smoke runs.
+- `SMOKE-TEST-FINDINGS.md` — append-only log, currently 29 smoke-test runs deep. Any new finding goes here first; resolved findings roll into `gap-report.md`.
+
+### 5.5 Running the smoke test
+
+```bash
+./smoke-test-enterprise.sh
+```
+
+Large (~74 KB) executable that exercises the render pipeline end-to-end against the fixture set. Read the top of the script before running in a shared environment — it touches real files under `samples/` and `test-inputs/`.
+
+---
+
+## 6. Guardrails
 
 ### Repo-wide
 
@@ -129,7 +198,7 @@ Do **not** edit the bodies of upstream skills. When you need different behaviour
 
 ---
 
-## 6. Gaps before rollout
+## 7. Gaps before rollout
 
 Eight items require a company-specific decision before enterprise deployment. None require code changes — they are policy or metadata.
 
@@ -144,7 +213,7 @@ Eight items require a company-specific decision before enterprise deployment. No
 
 ---
 
-## 7. What "good" looks like for a company SKILL.md
+## 8. What "good" looks like for a company SKILL.md
 
 Use this as a one-page style guide.
 
