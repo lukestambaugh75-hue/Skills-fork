@@ -147,17 +147,21 @@ This is the most-used document type. Match this structure exactly:
 12. **10.0 References** table (Number / Title)
 13. **Appendix A, B, …** — one per supporting document (permit form, checklist, etc.)
 
-Reference file: `05-samples/Hot Work Procedure (docxtpl).docx` — gold-standard example. Input JSON: `05-samples/input-example.json`.
+**Authoritative template file(s):** `03-original-templates/NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` (untagged source) or `02-templates/Procedure Template (Jinja).docx` (Jinja-tagged, render-ready). These are the only valid Procedure templates in this project. Do not look for, invent, or fall back to any other template file (there is no "GOLDEN_TEMPLATE.dotx", no "TEMPLATE DNA" fallback, and no hidden master template — if a file is not in `02-templates/` or `03-original-templates/`, it does not exist).
+
+**Reference example (format model only — not a template):** `05-samples/Hot Work Procedure (docxtpl).docx`. Input JSON: `05-samples/input-example.json`.
 
 ### Standard (legacy format)
 
 - INTRODUCTION → SCOPE → INTEGRATED GOVERNANCE FRAMEWORK → DEFINITIONS → REFERENCES → (one or more) content sections → EXCEPTION REQUEST → CONTINUOUS IMPROVEMENT → OWNERSHIP → APPROVAL → REVISION HISTORY
-- Reference: `05-samples/Hot Work Safety Standard.docx`
+- **Authoritative template file(s):** `03-original-templates/Standard Template.docx` (untagged source) or `02-templates/Standard Template (Jinja).docx` (Jinja-tagged, render-ready). These are the only valid Standard templates. Do not look for, invent, or fall back to any other template file.
+- **Reference example (format model only — not a template):** `05-samples/Hot Work Safety Standard.docx`.
 
 ### Guidance (legacy format)
 
 - PURPOSE → INTEGRATED GOVERNANCE FRAMEWORK → GUIDELINE (with bulleted best-practice recommendations) → OWNERSHIP → APPROVAL → REVISION HISTORY
-- Reference: `05-samples/Hot Work Safety Guidance.docx`
+- **Authoritative template file(s):** `03-original-templates/Guidance Template.docx` (untagged source) or `02-templates/Guidance Template (Jinja).docx` (Jinja-tagged, render-ready). These are the only valid Guidance templates. Do not look for, invent, or fall back to any other template file.
+- **Reference example (format model only — not a template):** `05-samples/Hot Work Safety Guidance.docx`.
 
 ## Key defined terms in governance docs
 
