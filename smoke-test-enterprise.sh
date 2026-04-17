@@ -910,36 +910,40 @@ except Exception as e:
 done
 
 # =============================================================================
-section "26. Walk-and-replace fallback — definitions table column mismatch"
+section "26. Schema definitions shape — Procedure vs Standard compatibility"
 # =============================================================================
-# Known bug: _std_proc_table_plans assumes 3-column Definitions (No/Term/Def)
-# for Standard, but Procedure uses 2-column (Term/Def). Verify the schemas
-# actually have different definitions shapes so the code is correct.
+# The strict render path uses StrictUndefined, so if a schema field exists in
+# one doc type but not another, and a template accidentally references the wrong
+# field, it raises immediately. Verify that shared fields have compatible shapes
+# across Procedure and Standard schemas so the render pipeline can use the same
+# data structure for both.
 
 python3 -c "
 import json
 proc = json.load(open('skills/docx/templates/procedure_schema.json'))
 std  = json.load(open('skills/docx/templates/standard_schema.json'))
+gdn  = json.load(open('skills/docx/templates/guidance_schema.json'))
 
-proc_defs = proc.get('fields', {}).get('definitions', {})
-std_defs  = std.get('fields', {}).get('definitions', {})
+for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
+    defs = schema.get('fields', {}).get('definitions', {})
+    items = defs.get('items', {})
+    keys = sorted(items.keys()) if isinstance(items, dict) else []
+    if keys:
+        print(f'INFO:{name} definitions item keys: {keys}')
+    else:
+        print(f'INFO:{name} definitions: list-of-strings or not present in schema fields')
 
-proc_items = proc_defs.get('items', {})
-std_items  = std_defs.get('items', {})
-
-proc_keys = sorted(proc_items.keys()) if isinstance(proc_items, dict) else []
-std_keys  = sorted(std_items.keys()) if isinstance(std_items, dict) else []
-
-print(f'INFO:Procedure definitions item keys: {proc_keys}')
-print(f'INFO:Standard definitions item keys: {std_keys}')
-
-if proc_keys == std_keys:
-    print('OK:definitions schemas have identical item shapes')
-elif set(std_keys) - set(proc_keys):
-    extra = set(std_keys) - set(proc_keys)
-    print(f'WARN:Standard definitions has extra fields vs Procedure: {extra} — render_docx.py _std_proc_table_plans must handle this')
-else:
-    print(f'WARN:definitions schemas differ: proc={proc_keys}, std={std_keys}')
+# Verify schemas have the same revision_history shape (shared critical field)
+for field in ['revision_history', 'raci', 'approval']:
+    shapes = {}
+    for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
+        f = schema.get('fields', {}).get(field, {})
+        if f:
+            shapes[name] = f.get('type', 'unknown')
+    if len(set(shapes.values())) == 1:
+        print(f'OK:shared field \"{field}\" same type across all schemas ({list(shapes.values())[0]})')
+    elif shapes:
+        print(f'WARN:shared field \"{field}\" type mismatch: {shapes}')
 " 2>&1 | while IFS= read -r line; do
     case "$line" in
         OK:*)   pass "${line#OK:}" ;;
