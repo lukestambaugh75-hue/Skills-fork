@@ -1076,14 +1076,18 @@ section "30. NextDecade-Claude-Project/04-scripts — canonical copy check"
 # The 04-scripts/ directory duplicates scripts from skills/docx/scripts/ and
 # skills/pptx/scripts/. Verify they're byte-identical so users don't get
 # different behavior depending on which copy they run.
+#
+# Legitimate per-copy differences (stripped before diff):
+#   render_docx.py: TEMPLATES path (skills/docx/templates vs 02-templates)
+#   render_docx.py: NOTE comment about path constants differing
+#   render_pptx.py: TEMPLATES path similarly
+# UPLOADS and _REPO_ROOT constants were removed in the strict-only refactor;
+# the grep pattern is kept for safety in case they're re-added.
 
 SCRIPT_PAIRS=(
     "skills/docx/scripts/render_docx.py:NextDecade-Claude-Project/04-scripts/render_docx.py"
     "skills/pptx/scripts/render_pptx.py:NextDecade-Claude-Project/04-scripts/render_pptx.py"
 )
-# Path constants MUST differ between skills/ and 04-scripts/ because the files
-# live in different directories. Strip known path-constant lines before comparing
-# so only functional divergence is flagged.
 for pair in "${SCRIPT_PAIRS[@]}"; do
     IFS=':' read -r canonical dupe <<< "$pair"
     if [ -f "$canonical" ] && [ -f "$dupe" ]; then
