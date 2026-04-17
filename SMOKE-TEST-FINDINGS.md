@@ -1,163 +1,150 @@
-# Enterprise Smoke Test Findings (v2)
+# Enterprise Smoke Test Findings (v3)
 
-**Generated**: 2026-04-16
-**Branch**: `claude/smoke-test-enterprise-WgTKd`
-**Script**: `smoke-test-enterprise.sh` (v2, 30 sections, 197 checks)
+**Generated**: 2026-04-17
+**Branch**: `claude/refactor-original-implementation-y1irE`
+**Script**: `smoke-test-enterprise.sh` (v3, 35 sections, 229+ checks)
 
 ---
 
 ## Summary
 
-| Metric | Count |
-|--------|-------|
-| PASS   | 186   |
-| FAIL   | 0     |
-| WARN   | 11    |
-| Total  | 197   |
+| Metric | Run 1 (baseline) | Run 17 (current) |
+|--------|-----------------|-----------------|
+| PASS   | 182             | 226             |
+| FAIL   | 3               | 0               |
+| WARN   | 9               | 3               |
+| Total  | 194             | 229             |
+
+**RESULT: PASSED** (3 advisory warnings, all about tracked files that are optional for production upload)
 
 ---
 
-## 1. Branding-vs-Formatting Override Validation
+## What Changed — Run-by-Run Fix Log
 
-**Verdict: NextDecade branding does NOT override Procedure/Standard/Guidance formatting.**
+### Run 1 — Baseline after strict-only refactor
 
-The smoke test (sections 21-23) confirms clean separation at every layer:
+After removing all fallback paths from `render_docx.py`, the smoke test had:
+- **3 FAILs** in section 25: fallback function checks (`FALLBACK_FNS`, `fallback` key) — both intentionally removed
+- **Section 31 silent**: called `walk_replace_procedure`/`walk_replace_standard` which no longer exist
 
-| Layer | Branding (colors/fonts/voice) | Document structure (sections/tables/ordering) | Conflict? |
-|-------|-------------------------------|-----------------------------------------------|-----------|
-| `brand-guidelines/SKILL.md` | Defines colors, fonts, voice, boilerplate | Zero structural rules (no section numbers, no heading order, no schema refs) | **None** |
-| `docx/SKILL.md` | References brand colors from brand-guidelines | Defines full Procedure/Standard/Guidance structure, render pipeline, schema refs | **None** |
-| `CLAUDE-INSTRUCTIONS.md` | Brand identity section (lines 9-35) | Governance documents section (lines 37-71) with per-type structure | **None** (different sections, both defer to templates) |
-| `render_docx.py` | Brand chrome preserved byte-identically from .docx template | Structure locked by Jinja template + schema markers | **None** (template IS the structure) |
-| Walk-and-replace fallback | Copies original template (preserves all brand chrome) | Fills markers by style-name matching, not brand rules | **None** |
+### Run 2 — Fix section 25 fallback check
 
-### Why no override is possible
+Section 25 previously checked that `FALLBACK_FNS` was populated and each `DOC_TYPES` entry had a `fallback` key. Updated to verify the **opposite**: `FALLBACK_FNS` absent, `render_via_docxtpl_lenient` absent, no `fallback` key in any `DOC_TYPES` cfg, and `render_via_docxtpl` present. **3 FAILs → 0 FAILs.**
 
-1. **Template-driven rendering**: `render_docx.py` takes a `.docx` template file and fills Jinja markers. The section order, heading styles, table layouts, and page structure all come from the Word template binary -- not from any SKILL.md or CLAUDE-INSTRUCTIONS.md. Branding rules cannot alter template structure.
+### Run 3 — Fix section 31 walk_replace calls
 
-2. **Brand-guidelines has no structural vocabulary**: The skill defines `#002060`, `Segoe UI`, voice registers, and boilerplate text. It has no concept of "1.0 Purpose", "Revision History table", or "INTRODUCTION -> SCOPE -> GOVERNANCE". These live exclusively in the docx skill and its schemas.
+Section 31 called `render_docx.walk_replace_procedure`/`walk_replace_standard` (removed functions), producing 0 checks. Updated to:
+- Assert `walk_replace_*` functions absent from module (strict-only API surface)
+- Guard render fingerprint test with `ImportError` catch for missing `docxtpl`
+- Add `WARN` handler to section 31 while-loop so WARN lines are counted
 
-3. **CLAUDE-INSTRUCTIONS.md separates concerns explicitly**: Line 36 says "use the templates in `02-templates/`" -- it defers to templates rather than re-defining structure inline. The section descriptions are documentation aids, not override rules.
+### Run 4 — Remove `Use this to share.zip` from git
 
-4. **Walk-and-replace fallback uses style-name matching**: It targets styles like `"RGLNG 1 (Hdg1)"`, `"Body Text"`, `"Title Cover Page (Proc Title)"` which are baked into the template. Brand color changes don't affect style names.
+The 18 MB distribution archive was committed. Removed from index with `git rm --cached` and added `*.zip` pattern to `.gitignore`. Section 10 large-file warning for the ZIP gone.
 
-### Edge cases to monitor
+### Run 5 — Raise section 10 bloat threshold 5 MB → 10 MB
 
-- If someone edits `brand-guidelines/SKILL.md` to add section-ordering rules (e.g., "Procedures must start with Purpose"), it would create an implicit override. The smoke test section 21 guards against this with pattern matching.
-- `CLAUDE-INSTRUCTIONS.md` line 7 says "Follow the rules below unless the user explicitly overrides" -- a user could theoretically say "use NCS green for all headers" and override navy headers in a Procedure. This is by design, not a bug.
+The 5 MB threshold triggered 4 warnings for required template binaries (POTX master, PDF reference, 2 PPTX samples) that are intentional tracked files. Raised to 10 MB. Added inline documentation listing the 4 known intentional binaries and their sizes. **4 large-file warnings eliminated (9 WARN → 5 WARN).**
+
+### Run 6 — Section 11: only warn on git-tracked removable files
+
+Previously warned on any file that existed on disk, including gitignored files. Gated on `git ls-files` membership. ZIP no longer triggers section 11 since it's untracked. **5 → 4 WARN.**
+
+### Run 7 — Section 29: filter gitignored items from removable inventory
+
+Same issue as run 6 but in section 29's static list. Removed `Use this to share.zip` entry and gitignored items (`output/iter`, `skills/theme-factory/theme-showcase.pdf`). Added git-tracked gate to the count loop. Section 29 count 8 → 7.
+
+### Run 8 — Install `docxtpl`; section 31 render fingerprint now runs
+
+`docxtpl` is in `requirements.txt` (`docxtpl>=0.16.0`) but wasn't installed in the environment. After `pip install docxtpl python-docx`, section 31's render fingerprint test runs and confirms:
+- **Procedure**: template font `Segoe UI`, H1 color `2F5496` — output matches ✓
+- **Standard**: template font `Aptos Display`, H1 color `0F4761` — output matches ✓
+
+**4 → 3 WARN** (docxtpl-not-installed WARN removed).
+
+### Run 9 — Section 26: replace stale walk-replace reference
+
+Section 26 referenced `_std_proc_table_plans` (deleted in fallback refactor). Updated to verify shared fields (`revision_history`, `raci`, `approval`) have compatible types across all three schemas — a meaningful invariant for the strict render path where mismatched field types would cause `UndefinedError` at render time. **3 new PASSes.**
+
+### Run 10 — Add section 32: StrictUndefined enforcement test
+
+New test verifies the core strict-only invariant: `render()` raises `UndefinedError` when `procedure_title` is missing from input data. Guards against accidental re-introduction of `ChainableUndefined`. **1 new PASS.**
+
+### Run 11 — Add section 33: lint failure raises RuntimeError
+
+New test verifies `render()` raises `RuntimeError` when linter returns exit code 3 (unrecoverable template damage). Mocks `subprocess.run` to return `exit=3` for the linter call. **1 new PASS.**
+
+### Run 12 — Add section 34: full API surface audit
+
+Enumerates every function/attribute that must be present (`render`, `render_via_docxtpl`, `convert_to_pdf`) and every function that must be absent (all `walk_replace_*`, all `_wr_*`, `render_procedure`, `render_via_docxtpl_lenient`, `_resolve_original`, `FALLBACK_FNS`). **15 new PASSes.**
+
+### Run 13 — Section 30: update comment to reflect UPLOADS/REPO_ROOT removal
+
+`UPLOADS` and `_REPO_ROOT` constants were removed in the strict-only refactor. The diff filter grep pattern retains those tokens for safety but the comment now accurately describes what was removed and why.
+
+### Run 14 — Section 6: add source_template integrity check
+
+Each schema has a `source_template` field pointing to the original `.docx` in `03-original-templates/`. New check verifies each path resolves to an actual file. Catches drift if a source file is renamed without updating the schema. **3 new PASSes.**
+
+### Run 15 — Section 8: add render_pptx.py import verification
+
+Section 8 only checked file existence, not importability. New check imports `render_pptx.py` via `importlib` and verifies `render()` is present. **1 new PASS.**
+
+### Run 16 — Add section 35: _xml_escape_data unit tests
+
+`_xml_escape_data` is the sole guard between user content and Word XML. Tests cover: ampersand, less-than, greater-than, combined, safe passthrough, numeric passthrough, `None` passthrough, dict recursion, list recursion. **9 new PASSes.**
+
+### Run 17 — Update SMOKE-TEST-FINDINGS.md (this document)
 
 ---
 
-## 2. Code Errors Found
+## Remaining Warnings (3)
 
-### 2a. Pipe-subshell counter bug (FIXED in v2)
+All 3 are **advisory only** — tracked files that are optional for a lean production upload but are useful for development:
 
-**File**: `smoke-test-enterprise.sh` (original v1)
-**Issue**: `python3 -c ... | while read ...` runs the while-loop in a subshell. PASS/FAIL/WARN counter increments were lost when the subshell exited, causing the summary to undercount.
-**Fix**: Added `_COUNTER_FILE` temp file approach. Each `pass()`/`fail()`/`warn()` writes a marker to a shared file. `_reconcile_counters()` reads the file before printing the summary.
-
-### 2b. `_std_proc_table_plans` definitions table column assumption
-
-**File**: `render_docx.py:717-732`
-**Issue**: The Standard walk-and-replace fallback assumes a 3-column Definitions table (`No.`, `Term`, `Definition`) with fields `d["no"]`, `d["term"]`, `d["definition"]`. The Procedure schema uses 2-column (`Term`, `Definition`). This is correct behavior (they're different document types with different template layouts), but the function name `_std_proc_table_plans` is misleading -- it's only used for Standard, not Procedure.
-**Severity**: Low (functional, naming is confusing)
-
-### 2c. `_post_render_cover_fixup` fragile string matching
-
-**File**: `render_docx.py:94-146`
-**Issue**: Uses exact string matches (`"NAME"`, `"xxx-xxx-xxx-xxx-xxx-#####"`) to find and replace cover-page text boxes in Standard/Guidance. If someone edits the template and changes these placeholder strings, the fixup silently becomes a no-op.
-**Mitigation**: Smoke test section 27 now validates that these placeholders still exist in the templates. Currently PASS (2/2 for both Standard and Guidance).
-
-### 2d. `_remove_template_scaffolding` incomplete for Standard/Guidance
-
-**File**: `render_docx.py:149-194`
-**Issue**: Procedure type gets thorough cleanup (removes "Use the following for notes, cautions, and warnings" paragraph + demo table). Standard/Guidance only remove `[CONTENT TITLE]`, `Enter text here`, `Click here to enter text`. If the Standard/Guidance templates gain additional scaffolding, it'll survive into rendered output.
-**Severity**: Low (current templates work; future template changes need matching code updates)
+| Section | Warning | Action |
+|---------|---------|--------|
+| 11 | `samples/document-types-validation/` tracked (1 MB) | Contains `_inputs/` JSON referenced by smoke test sections 28 and 31; keep tracked |
+| 11 | `.claude/plans/` tracked (1 MB) | Development planning docs; keep tracked for dev context |
+| 29 | 7 tracked items removable for skills-only upload | Advisory inventory; no action needed |
 
 ---
 
-## 3. Files NOT Relevant to Fresh Skill Upload
+## Architecture Validated
 
-These files/directories can be excluded when uploading skills for a fresh start. They are examples, dev artifacts, or build outputs:
+### 1. Strict-Only Render Pipeline
 
-| Item | Size | Reason | Action |
-|------|------|--------|--------|
-| `Use this to share.zip` | 12MB | Flattened shareable bundle | Remove from git, use GitHub Releases |
-| `.claude/plans/` | 1MB | Development planning docs (future implementation ideas) | Exclude from upload |
-| `samples/document-types-validation/` | 1MB | Validation sample set (rebuild via `_build/` scripts) | Exclude from upload (already gitignored for binary outputs) |
-| `SMOKE-TEST-FINDINGS.md` | <1MB | Previous/current smoke test findings | Exclude from upload (dev artifact) |
-| `extracted-specs.md` | <1MB | Claude-readable brand distillation | Useful for Claude Projects, NOT needed for skill upload |
-| `gap-report.md` | <1MB | Gap analysis report | Useful for Claude Projects, NOT needed for skill upload |
-| `NextDecade-Claude-Project/05-samples/` | 9MB | Hot Work example set (6 documents) | Reference only -- exclude from skill upload |
-| `NextDecade-Claude-Project/03-original-templates/` | 1MB | Source templates before Jinja tagging | Used by `build_procedure_jinja.py`, not runtime |
-
-### What IS needed for a clean skills-only upload
-
+The `render_docx.py` pipeline is now strictly one path:
 ```
-skills/                           # All 17 skills with SKILL.md files
-  docx/                           # Templates, schemas, render scripts
-  pptx/                           # Render scripts, brand-family gate
-  xlsx/                           # Render scripts, recalc
-  pdf/                            # PDF processing scripts
-  brand-guidelines/               # Brand constants
-  internal-comms/                 # Comms guidelines
-  [other skills]/                 # algorithmic-art, canvas-design, etc.
-.claude-plugin/marketplace.json   # Skill manifest
-template/SKILL.md                 # Skill template
-spec/agent-skills-spec.md         # Agent Skills spec
-requirements.txt                  # Python dependencies
-```
-
-### What IS needed for Claude Projects (web) upload
-
-```
-NextDecade-Claude-Project/
-  01-brand-references/            # 2 PDFs
-  02-templates/                   # 3 Jinja DOCX + 3 JSON schemas + 2 PPTX/PDF
-  04-scripts/                     # 4 Python scripts
-  START-HERE.md
-  CLAUDE-INSTRUCTIONS.md          # Paste into Project custom instructions
-  PROJECT-SELFTEST.md
-extracted-specs.md                # Brand distillation (upload as knowledge)
-gap-report.md                     # Gap analysis (upload as knowledge)
+Input JSON → Lint template (exit 0/2 only) → render_via_docxtpl (StrictUndefined) → post-render fixup → output .docx
 ```
 
----
+Any deviation (lint exit 3, missing Jinja key, broken ZIP fixup) raises immediately with no silent swallow.
 
-## 4. Warnings (11 total)
+### 2. Branding-vs-Formatting Override Safety
 
-| # | Section | Warning | Severity | Recommendation |
-|---|---------|---------|----------|----------------|
-| 1-5 | 10 | 5 tracked files > 5MB (PPTX, POTX, PDF, ZIP) | Low | Move `Use this to share.zip` to Releases; others are templates that must be tracked |
-| 6-8 | 11 | 3 removable items for fresh upload | Advisory | See section 3 above |
-| 9 | 29 | 8 items identified as removable | Advisory | Overlaps with section 11 |
-| 10-11 | 30 | ~~`render_docx.py` and `render_pptx.py` DIVERGED~~ — RESOLVED | — | The sha256 mismatch was a false alarm: only 3 path-constant lines differ (required because each file resolves templates relative to its own directory). The smoke test now filters those lines before comparing and reports `in sync: … (functional code identical, paths adjusted)`. |
+The smoke test (sections 21-23) confirms clean separation:
 
----
+| Layer | Branding | Document structure | Conflict? |
+|-------|----------|-------------------|-----------|
+| `brand-guidelines/SKILL.md` | Defines colors, fonts, voice | Zero structural rules | **None** |
+| `docx/SKILL.md` | References brand colors | Defines structure, schema refs | **None** |
+| `CLAUDE-INSTRUCTIONS.md` | Brand identity section | Governance section | **None** |
+| `render_docx.py` | Brand chrome from .docx template | Structure from Jinja template | **None** |
 
-## 5. Architectural Observations
+### 3. Template-Is-Sole-Source-of-Formatting Invariant (Confirmed)
 
-### 5a. Two copies of everything
+Section 31 render fingerprint test (with `docxtpl` installed) confirms:
+- **Procedure**: strict render output font/H1 matches template (`Segoe UI`, H1=`2F5496`)
+- **Standard**: strict render output font/H1 matches template (`Aptos Display`, H1=`0F4761`)
 
-Templates, schemas, and scripts exist in both `skills/docx/` and `NextDecade-Claude-Project/`. Schemas are in sync (section 6 PASS), templates are in sync (section 14 PASS), and scripts are functionally in sync (section 30 PASS after filtering path constants). The only legitimate per-copy difference is the `TEMPLATES` / `UPLOADS` path constants at the top of `render_docx.py` / `render_pptx.py`, which must point at each copy's local template directory. Edits to render logic must still be mirrored; the smoke test's section 30 catches any functional drift.
+### 4. Two-Copy Architecture
 
-**Recommendation**: Keep `skills/` as the edit-first location. Before committing, mirror any render-logic changes to `04-scripts/` and re-run the smoke test to confirm section 30 stays green.
-
-### 5b. Schema version inconsistency
-
-All three schemas have `schema_version: "2.0.0"` at the top level, but the `description` field in Standard and Guidance says "v1.0.0 (legacy layout)". This suggests Standard and Guidance haven't been updated to match the April 2026 Procedure revision.
-
-### 5c. marketplace.json doesn't register NextDecade customizations
-
-The manifest registers 3 upstream bundles (`document-skills`, `example-skills`, `claude-api`) but doesn't call out NextDecade-specific skills or customizations as a separate enterprise bundle.
-
-### 5d. No formal test suite
-
-The repo has: manual `PROJECT-SELFTEST.md` checklist, template linters, `_build/` eyeball scripts, and now this smoke test. But there's no `pytest`/`unittest` suite for the render pipeline. A test that renders each doc type from a fixture JSON and asserts the output XML structure would catch regressions.
+`skills/docx/scripts/` and `NextDecade-Claude-Project/04-scripts/` are kept in sync. Section 30 confirms functional code is identical (only the `TEMPLATES` path constant differs, by design).
 
 ---
 
-## 6. Smoke Test Coverage Matrix
+## Coverage Matrix
 
 | What's tested | Section(s) | Status |
 |---------------|-----------|--------|
@@ -166,12 +153,12 @@ The repo has: manual `PROJECT-SELFTEST.md` checklist, template linters, `_build/
 | Marketplace manifest | 3 | PASS |
 | JSON validity | 4 | PASS |
 | Python syntax | 5 | PASS |
-| Schema-template pairs | 6 | PASS |
+| Schema-template pairs + source_template integrity | 6 | PASS |
 | Bundle completeness | 7 | PASS |
-| Script existence | 8 | PASS |
+| Render script existence + pptx import | 8 | PASS |
 | Hardcoded paths | 9 | PASS |
-| Binary bloat | 10 | WARN |
-| Output file inventory | 11, 29 | WARN |
+| Binary bloat (>10 MB threshold) | 10 | PASS |
+| Output file inventory (tracked only) | 11 | WARN (advisory) |
 | .gitignore coverage | 12 | PASS |
 | Anthropic references | 13 | PASS |
 | Template sync | 14 | PASS |
@@ -181,13 +168,18 @@ The repo has: manual `PROJECT-SELFTEST.md` checklist, template linters, `_build/
 | Duplicate detection | 18 | PASS |
 | PPTX brand-family gate | 19 | PASS |
 | Spec content | 20 | PASS |
-| **Branding-vs-formatting override** | **21** | **PASS** |
-| **docx SKILL.md structure/brand separation** | **22** | **PASS** |
-| **CLAUDE-INSTRUCTIONS structure coverage** | **23** | **PASS** |
-| **Schema cross-validation** | **24** | **PASS** |
-| **Render pipeline dry-run** | **25** | **PASS** |
-| **Definitions table column check** | **26** | **PASS** |
-| **Cover-page placeholder fragility** | **27** | **PASS** |
-| **All 3 doc type input validation** | **28** | **PASS** |
-| **Fresh upload inventory** | **29** | **WARN** |
-| **Script canonical copy sync** | **30** | **WARN** |
+| Branding-vs-formatting override | 21 | PASS |
+| docx SKILL.md structure/brand separation | 22 | PASS |
+| CLAUDE-INSTRUCTIONS structure coverage | 23 | PASS |
+| Schema cross-validation | 24 | PASS |
+| **Strict-only design verification** | **25** | **PASS** |
+| Schema definitions shape + shared field types | 26 | PASS |
+| Cover-page placeholder fragility | 27 | PASS |
+| All 3 doc type input validation | 28 | PASS |
+| Fresh upload inventory (tracked only) | 29 | WARN (advisory) |
+| Script canonical copy sync | 30 | PASS |
+| **Template formatting invariant + strict API surface** | **31** | **PASS** |
+| **StrictUndefined enforcement** | **32** | **PASS** |
+| **Lint failure raises** | **33** | **PASS** |
+| **API surface audit** | **34** | **PASS** |
+| **XML escape safety** | **35** | **PASS** |
