@@ -4,8 +4,9 @@ CLAUDE PROJECT KNOWLEDGE BUNDLE
 This is the small bundle for uploading to a Claude Project on claude.ai.
 It contains everything Claude needs to WRITE in NextDecade's voice and
 produce correctly-structured document inputs. It does NOT contain the
-Python renderers or binary brand templates -- Claude Projects cannot run
-scripts, and the renderers are used OUTSIDE the chat (on your machine).
+Python renderers -- Claude Projects cannot run scripts, and the renderers
+are used OUTSIDE the chat (on your machine). The binary brand templates
+ARE included so Claude can reference their structure directly.
 
 FILES IN THIS BUNDLE
 --------------------
@@ -13,6 +14,13 @@ FILES IN THIS BUNDLE
   README.docx                               -- repo README
   Skills and Documentation - Standards and Procedures.docx
   SKILL.md Template.docx                    -- reference (also below as .md)
+
+  Procedure Template (Jinja).docx           -- render-ready Jinja-tagged template
+  Standard Template (Jinja).docx            -- render-ready Jinja-tagged template
+  Guidance Template (Jinja).docx            -- render-ready Jinja-tagged template
+  NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx  -- untagged source
+  Standard Template.docx                    -- untagged source
+  Guidance Template.docx                    -- untagged source
 
   All Skills Reference.md                   -- all 17 SKILL.md files in one doc
   NextDecade Project Instructions.md        -- START-HERE + CLAUDE-INSTRUCTIONS + SELFTEST

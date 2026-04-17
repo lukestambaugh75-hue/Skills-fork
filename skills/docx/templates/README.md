@@ -19,7 +19,7 @@ Templates here are **edit-in-Word, render-via-Python**. Markers like `{{ purpose
 python ../scripts/render_docx.py procedure input.json output.docx [--pdf]
 ```
 
-Pipeline does: lint → docxtpl → fallback to walk-and-replace if template damaged.
+Pipeline does: lint → docxtpl (strict). If the template is damaged, fix it in Word and re-lint — there is no fallback path.
 
 ## Editing the template in Word
 
@@ -29,7 +29,7 @@ You CAN edit this template in Word — change layouts, add sections, fix typos i
 python ../scripts/lint_docx_template.py "Procedure Template (Jinja).docx" procedure_schema.json
 ```
 
-Exit code 0 = clean. Exit 2 = warnings (render still works). Exit 3 = errors (render falls back to walk-and-replace).
+Exit code 0 = clean. Exit 2 = warnings (render still works). Exit 3 = errors (render refuses to proceed — fix the template in Word).
 
 ## docxtpl marker patterns used in `Procedure Template (Jinja).docx`
 
@@ -60,6 +60,3 @@ Exit code 0 = clean. Exit 2 = warnings (render still works). Exit 3 = errors (re
 3. Define a schema JSON next to it
 4. Add an entry in `render_docx.py` to route to it
 
-## Known divergences between docxtpl and walk-and-replace fallback
-
-Both render paths produce structurally equivalent output for the new procedure schema. The walk-and-replace fallback also strips the source template's "Sample Styles" section so the rendered procedure matches the docxtpl output. The fallback is invoked when the Jinja template is damaged; the rendered output still uses the brand chrome, but the lint report tells you to fix the Jinja template to restore the fast path.
