@@ -12,6 +12,11 @@
     "approval",
     "revision_history"
   ],
+  "post_render_markers": [
+    "document_name",
+    "doc_number"
+  ],
+  "_post_render_markers_note": "document_name and doc_number are required input fields but are NOT Jinja markers in the template. They are applied after render via _post_render_cover_fixup which patches plain-text placeholders (NAME, xxx-xxx-xxx-xxx-xxx-#####) in the cover-page text boxes and headers.",
   "optional_markers": ["b", "rev"],
   "fields": {
     "document_name": {
