@@ -404,24 +404,25 @@ else
 fi
 
 echo ""
-echo "  Other files NOT required for a fresh skills-only upload:"
+echo "  Tracked files/dirs NOT required for a fresh skills-only upload:"
 
 NOT_NEEDED_FOR_UPLOAD=(
-    "Use this to share.zip"
     "samples/document-types-validation"
     "output/final"
     ".claude/plans"
     "skills/theme-factory/theme-showcase.pdf"
 )
 for item in "${NOT_NEEDED_FOR_UPLOAD[@]}"; do
-    if [ -e "$item" ]; then
+    # Only warn if the item is actually tracked by git (not just present on disk)
+    if git ls-files --error-unmatch "$item" > /dev/null 2>&1 || \
+       [ -n "$(git ls-files "$item" 2>/dev/null)" ]; then
         if [ -d "$item" ]; then
             item_size=$(du -sm "$item" 2>/dev/null | cut -f1)
-            warn "removable for fresh upload: $item/ (${item_size}MB dir)"
-        else
+            warn "tracked but removable for fresh upload: $item/ (${item_size}MB dir)"
+        elif [ -f "$item" ]; then
             size=$(stat -c%s "$item" 2>/dev/null || stat -f%z "$item" 2>/dev/null || echo 0)
             size_mb=$(( size / 1048576 ))
-            warn "removable for fresh upload: $item (${size_mb}MB)"
+            warn "tracked but removable for fresh upload: $item (${size_mb}MB)"
         fi
     fi
 done
