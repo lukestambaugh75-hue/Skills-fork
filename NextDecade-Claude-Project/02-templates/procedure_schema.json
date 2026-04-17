@@ -1,0 +1,175 @@
+{
+  "schema_version": "2.0.0",
+  "template": "Procedure Template (Jinja).docx",
+  "source_template": "NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx",
+  "description": "Input schema for NextDecade Procedure documents (Rev 1, April 9 2026 layout). Pass a dict matching this shape to render_docx.render('procedure', data, output).",
+  "required_markers": [
+    "procedure_title",
+    "doc_number",
+    "header_date",
+    "revision",
+    "revision_history",
+    "change_log",
+    "purpose_text",
+    "scope_text",
+    "roles_intro",
+    "roles",
+    "ppe_paragraphs",
+    "procedure_section_title",
+    "procedure_intro",
+    "steps_intro",
+    "steps",
+    "recordkeeping_text",
+    "terms_intro",
+    "definitions",
+    "abbreviations_intro",
+    "abbreviations",
+    "references",
+    "appendices"
+  ],
+  "optional_markers": [
+    "r",
+    "c",
+    "line",
+    "p",
+    "s",
+    "d",
+    "a",
+    "ref"
+  ],
+  "fields": {
+    "procedure_title": {
+      "type": "string",
+      "description": "Document title shown on the cover page and in the running header. ALL CAPS or Title Case per NextDecade convention. e.g., 'Hot Work Procedure'."
+    },
+    "doc_number": {
+      "type": "string",
+      "description": "NextDecade document number in the format ORG-NTD-000010-XXX-PRC-00099. Shown on cover and in header."
+    },
+    "header_date": {
+      "type": "string",
+      "description": "Date in the running header. Format M/D/YYYY (e.g., '4/15/2026')."
+    },
+    "revision": {
+      "type": "string",
+      "description": "Current revision letter or number (e.g., 'A', 'B', '0', '1'). Shown in the header as 'Rev.: A'."
+    },
+    "revision_history": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "Rows of the Revision History table on page 2 (six columns: Rev / Date / Description / Originator / Reviewer/Endorser / Approver).",
+      "item_shape": {
+        "rev": "string — revision letter or number",
+        "date": "string — MM-DD-YY",
+        "description": "string — e.g., 'Issued for Review', 'Issued for Use'",
+        "originator": "string — author name",
+        "reviewer": "string — reviewer / endorser name",
+        "approver": "string — approver name"
+      }
+    },
+    "change_log": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the Change Log table (Revision / Description of Changes and Notes).",
+      "item_shape": {
+        "revision": "string — revision letter or number",
+        "description": "string — what changed in this revision"
+      }
+    },
+    "purpose_text": {
+      "type": "string",
+      "description": "Section 1.0 PURPOSE body. Single paragraph. State the purpose of the procedure (e.g., 'The purpose of this procedure is to ...')."
+    },
+    "scope_text": {
+      "type": "string",
+      "description": "Section 2.0 SCOPE body. Single paragraph. Identify which facilities and which workforce members are covered. NextDecade boilerplate references 'NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), or any other affiliated entity'."
+    },
+    "roles_intro": {
+      "type": "string",
+      "description": "Section 3.0 intro sentence (e.g., 'Roles and responsibilities for this procedure include the following.')."
+    },
+    "roles": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "Rows of the Roles & Responsibilities table.",
+      "item_shape": {
+        "role": "string — e.g., 'Managers or Designee', 'Facility and Workgroup Supervisors', 'Employees', 'HSSE Advisors', 'Contractors and other workers and visitors'",
+        "responsibilities": "list[string] — one bullet per responsibility; each rendered as a separate paragraph in the Responsibilities cell"
+      }
+    },
+    "ppe_paragraphs": {
+      "type": "list[string]",
+      "min_items": 1,
+      "description": "Paragraphs that fill Section 4.1 Personal Protective Equipment. The body of 4.1 in the source template is two paragraphs; pass any number here and each becomes a separate body paragraph."
+    },
+    "procedure_section_title": {
+      "type": "string",
+      "description": "Section 5.0 heading text (the actual procedure heading). e.g., 'Hot Work Procedure', 'Lockout/Tagout Procedure'."
+    },
+    "procedure_intro": {
+      "type": "string",
+      "description": "First body paragraph of Section 5.0 — sets up the procedure. (Source template has 'Procedure body goes here.')"
+    },
+    "steps_intro": {
+      "type": "string",
+      "description": "Lead-in sentence above the Step / Description table. (Source template has 'The XXX completes the following:')"
+    },
+    "steps": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "Rows of the Step / Description table.",
+      "item_shape": {
+        "step": "string — step number or letter (e.g., '1', '2', '3a')",
+        "description": "string — what the responsible party does in this step"
+      }
+    },
+    "recordkeeping_text": {
+      "type": "string",
+      "description": "Body of the combined 'Record Keeping Requirements and Training' section. Typically references ORG-NTD-000010-HSE-PRC-00037 — Manual — Procedures, Definitions and Record Keeping Requirements."
+    },
+    "terms_intro": {
+      "type": "string",
+      "description": "Lead-in sentence above the Definitions / Terms table (e.g., 'The following terms are specific to this document.')."
+    },
+    "definitions": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the Definitions / Terms table.",
+      "item_shape": {
+        "term": "string — the defined term",
+        "definition": "string — the full definition"
+      }
+    },
+    "abbreviations_intro": {
+      "type": "string",
+      "description": "Lead-in sentence above the Abbreviations table (e.g., 'The following abbreviations and acronyms are specific to this document.')."
+    },
+    "abbreviations": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the Abbreviations and Acronyms table.",
+      "item_shape": {
+        "abbreviation": "string — the abbreviation/acronym (e.g., 'HSSE', 'PPE')",
+        "definition": "string — the spelled-out form"
+      }
+    },
+    "references": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Rows of the References table.",
+      "item_shape": {
+        "number": "string — NextDecade doc number or 'External'",
+        "title": "string — full title of the referenced document"
+      }
+    },
+    "appendices": {
+      "type": "list[object]",
+      "min_items": 0,
+      "description": "Appendices appended after the References section. Each becomes one Appendix Heading 1 + body paragraph.",
+      "item_shape": {
+        "title": "string — appendix heading text (e.g., 'Hot Work Permit Form', 'Fire Watch Checklist'). The 'Appendix A.' / 'Appendix B.' prefix is contributed by the heading style.",
+        "body": "string — appendix body content"
+      }
+    }
+  }
+}

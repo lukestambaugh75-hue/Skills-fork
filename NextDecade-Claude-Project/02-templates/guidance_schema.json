@@ -1,0 +1,76 @@
+{
+  "schema_version": "2.0.0",
+  "template": "Guidance Template (Jinja).docx",
+  "source_template": "Guidance Template.docx",
+  "description": "Input schema for NextDecade Guidance documents. Guidance is advisory (best-practice recommendations). Shorter than Standards or Procedures — no Definitions, References, Exception Request, or Continuous Improvement sections. Section order: PURPOSE, INTEGRATED GOVERNANCE FRAMEWORK, GUIDELINE (intro + bullets), OWNERSHIP, APPROVAL, REVISION HISTORY. Pass a dict matching this shape to render_docx.render('guidance', data, output).",
+  "required_markers": [
+    "purpose_text",
+    "governance_text",
+    "guideline_intro",
+    "guideline_bullets",
+    "raci",
+    "approval",
+    "revision_history"
+  ],
+  "post_render_markers": [
+    "document_name",
+    "doc_number"
+  ],
+  "_post_render_markers_note": "document_name and doc_number are required input fields but are NOT Jinja markers in the template. They are applied after render via _post_render_cover_fixup which patches plain-text placeholders (NAME, xxx-xxx-xxx-xxx-xxx-#####) in the cover-page text boxes and headers.",
+  "optional_markers": ["b", "rev"],
+  "fields": {
+    "document_name": {
+      "type": "string",
+      "description": "Document title shown on the cover page and in the running header. e.g., 'Remote Work Guidance', 'Hot Work Safety Guidance'."
+    },
+    "doc_number": {
+      "type": "string",
+      "description": "NextDecade document number in the format ORG-NTD-000010-XXX-GDN-#####. XXX = functional area (HSE, SAF, SEC, OPS, etc.). Shown on cover and in header."
+    },
+    "purpose_text": {
+      "type": "string",
+      "description": "PURPOSE section body. Single paragraph. Guidance documents combine Purpose and Scope into one section. State the advisory intent and who it applies to. e.g., 'This Guidance provides best-practice recommendations for remote work arrangements across NextDecade Corporation.'"
+    },
+    "governance_text": {
+      "type": "string",
+      "description": "INTEGRATED GOVERNANCE FRAMEWORK section body. Single paragraph. Explain how this guidance fits into the broader NextDecade governance structure (Standards, Procedures, Guidance). Reference the parent Standard if applicable."
+    },
+    "guideline_intro": {
+      "type": "string",
+      "description": "Introductory paragraph of the GUIDELINE section, before the bulleted recommendations. Sets context for the best-practice list that follows."
+    },
+    "guideline_bullets": {
+      "type": "list[string]",
+      "min_items": 1,
+      "description": "Bulleted best-practice recommendations. Each string becomes a separate bullet paragraph in the GUIDELINE section. These are advisory, not mandatory."
+    },
+    "raci": {
+      "type": "object",
+      "description": "RACI matrix for the document. Single row with four responsibility assignments.",
+      "shape": {
+        "responsible": "string — role/team responsible for execution",
+        "accountable": "string — role/team accountable for outcomes",
+        "consulted": "string — role/team consulted during development",
+        "informed": "string — role/team informed of decisions"
+      }
+    },
+    "approval": {
+      "type": "object",
+      "description": "Approval block at the end of the document.",
+      "shape": {
+        "issuer": "string — issuer name and title (e.g., 'VP of HSSE')",
+        "adopted_by": "string — adopting entity (typically 'NextDecade Corporation')",
+        "effective_date": "string — effective or amended date (e.g., 'April 15, 2026')"
+      }
+    },
+    "revision_history": {
+      "type": "list[object]",
+      "min_items": 1,
+      "description": "Rows of the Revision History table (2 columns: Revision / Description of Changes and Notes). Uses the same `rev` key as the Procedure template's revision_history so schemas are consistent across doc types.",
+      "item_shape": {
+        "rev": "string — revision number or letter (e.g., '0', '1', 'A')",
+        "description": "string — what changed in this revision (e.g., 'Initial issue', 'Updated recommendations')"
+      }
+    }
+  }
+}

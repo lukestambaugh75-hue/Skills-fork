@@ -1,0 +1,39 @@
+{
+  "_comment": "Set brand to one of: NextDecade | RioGrandeLNG | NCS. Layout names must match the brand prefix (ND / RG / NCS). Shared layouts work for any brand.",
+  "brand": "RioGrandeLNG",
+  "title": "TODO — Deck title",
+  "slides": [
+    {
+      "layout": "Custom Layout",
+      "title": "TODO — Slide title",
+      "subtitle": "TODO — Subtitle or date"
+    },
+    {
+      "layout": "Public Disclaimer"
+    },
+    {
+      "layout": "RG Single Narrative 18 Font",
+      "title": "TODO — Section heading",
+      "bullets": [
+        "TODO bullet 1",
+        "TODO bullet 2",
+        "TODO bullet 3"
+      ]
+    },
+    {
+      "layout": "RG Dual Narrative",
+      "title": "TODO — Two-column slide",
+      "left_bullets": [
+        "TODO left col point 1",
+        "TODO left col point 2"
+      ],
+      "right_bullets": [
+        "TODO right col point 1",
+        "TODO right col point 2"
+      ]
+    },
+    {
+      "layout": "23_Custom Layout"
+    }
+  ]
+}
