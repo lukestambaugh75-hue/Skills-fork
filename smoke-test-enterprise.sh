@@ -1448,6 +1448,61 @@ done
 # =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
+section "36. _post_render_cover_fixup — patches NAME and doc number in Standard"
+# =============================================================================
+# _post_render_cover_fixup does targeted XML search-and-replace inside the
+# rendered .docx zip to fill in cover-page text boxes that Jinja cannot reach.
+# Test: copy the Jinja template, inject a fake render, call fixup, verify
+# placeholders were replaced.
+
+python3 - <<'PY' > /tmp/step36_out.txt 2>&1 || true
+import sys, zipfile, shutil, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+tpl = Path("skills/docx/templates/Standard Template (Jinja).docx")
+if not tpl.exists():
+    print("WARN cover-fixup-test: Standard template not found — skipping")
+    sys.exit(0)
+
+with tempfile.TemporaryDirectory() as td:
+    # Copy template as the "rendered" output (it contains the placeholder strings)
+    out = Path(td) / "standard_fixup_test.docx"
+    shutil.copy2(tpl, out)
+
+    data = {"document_name": "Hot Work Safety", "doc_number": "ND-HSSE-001-2026"}
+    patches = render_docx._post_render_cover_fixup(out, data, "standard")
+
+    if patches:
+        print(f"PASS cover-fixup: {len(patches)} placeholder(s) patched")
+        # Verify NAME and doc number appear in patched XML
+        with zipfile.ZipFile(out) as z:
+            all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
+                               for n in z.namelist()
+                               if n.startswith("word/") and n.endswith(".xml"))
+        if "Hot Work Safety" in all_xml:
+            print("PASS cover-fixup: document_name present in patched XML")
+        else:
+            print("FAIL cover-fixup: document_name not found in patched XML")
+        if "ND-HSSE-001-2026" in all_xml:
+            print("PASS cover-fixup: doc_number present in patched XML")
+        else:
+            print("FAIL cover-fixup: doc_number not found in patched XML")
+    else:
+        print("WARN cover-fixup: no patches applied (placeholders may have changed in template)")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step36_out.txt
+
+# =============================================================================
 _reconcile_counters
 
 # =============================================================================
