@@ -1202,6 +1202,8 @@ cases = [
      "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"),
     ("standard",  "skills/docx/templates/Standard Template (Jinja).docx",
      "samples/document-types-validation/_inputs/records-retention-standard.json"),
+    ("guidance",  "skills/docx/templates/Guidance Template (Jinja).docx",
+     "samples/document-types-validation/_inputs/remote-work-guidance.json"),
 ]
 with tempfile.TemporaryDirectory() as td:
     for dt, tpl, inp in cases:
