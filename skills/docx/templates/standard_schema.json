@@ -16,7 +16,11 @@
     "approval",
     "revision_history"
   ],
-  "_required_markers_note": "document_name and doc_number are consumed by the post-render cover-page fixup (it substitutes placeholder text NAME and xxx-xxx-xxx-xxx-xxx-##### inside text boxes and headers). They are not Jinja {{ }} markers in the template, so they are intentionally absent from required_markers. Moving them into required_markers caused every Standard render to fail lint and fall back to walk-and-replace against a separate original-template copy, which created drift risk. Do not re-add them here.",
+  "post_render_markers": [
+    "document_name",
+    "doc_number"
+  ],
+  "_post_render_markers_note": "document_name and doc_number are required input fields but are NOT Jinja markers in the template. They are applied after render via _post_render_cover_fixup which patches plain-text placeholders (NAME, xxx-xxx-xxx-xxx-xxx-#####) in the cover-page text boxes and headers.",
   "optional_markers": ["s", "b", "d", "ref", "rev"],
   "fields": {
     "document_name": {
