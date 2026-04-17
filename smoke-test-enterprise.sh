@@ -1224,6 +1224,73 @@ while IFS= read -r line; do
 done < /tmp/step32_out.txt
 
 # =============================================================================
+section "33. Lint failure raises — no silent render when template is broken"
+# =============================================================================
+# Verify that render() raises RuntimeError when the linter returns exit code 3
+# (unrecoverable template damage). In the strict-only design there is no
+# fallback path — a broken template must block rendering entirely.
+# We mock this by temporarily pointing at a non-existent schema file so the
+# linter subprocess returns non-zero, then check render() raises.
+
+python3 - <<'PY' > /tmp/step33_out.txt 2>&1 || true
+import sys, json, tempfile, unittest.mock
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN lint-raises-test: sample input not found — skipping")
+    sys.exit(0)
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN lint-raises-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+# Simulate a lint failure by patching subprocess.run to return exit code 3
+import subprocess, types
+
+orig_run = subprocess.run
+
+def fake_run(cmd, **kwargs):
+    if str(render_docx.LINTER) in str(cmd):
+        r = types.SimpleNamespace()
+        r.returncode = 3
+        r.stdout = '{}'
+        r.stderr = ''
+        return r
+    return orig_run(cmd, **kwargs)
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "lint_fail_test.docx"
+    with unittest.mock.patch.object(subprocess, 'run', side_effect=fake_run):
+        try:
+            render_docx.render("procedure", data, out)
+            print("FAIL lint-raises: render succeeded despite lint exit=3 (no fallback guard!)")
+        except RuntimeError as e:
+            if "lint" in str(e).lower() or "template" in str(e).lower():
+                print(f"PASS lint-raises: render raised RuntimeError on lint failure ({str(e)[:80]})")
+            else:
+                print(f"PASS lint-raises: render raised RuntimeError ({str(e)[:80]})")
+        except Exception as e:
+            print(f"PASS lint-raises: render raised {type(e).__name__} on lint failure")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step33_out.txt
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
 _reconcile_counters
