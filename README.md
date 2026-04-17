@@ -19,17 +19,19 @@ We pull from Anthropic upstream. Do **not** rewrite the bodies of upstream skill
 ## Adding a new company skill
 
 1. Copy [`./template`](./template) to `skills/<your-slug>/`.
-2. Fill in `name`, `description`, and `license` in the frontmatter. The `description` field must contain explicit `TRIGGER when: …` / `DO NOT TRIGGER when: …` clauses — see [`skills/claude-api/SKILL.md`](./skills/claude-api/SKILL.md) as the canonical example.
+2. Fill in `name`, `description`, and `license` in the frontmatter. For `description`, **new** company skills should use explicit `TRIGGER when: …` / `DO NOT TRIGGER when: …` clauses — see [`skills/claude-api/SKILL.md`](./skills/claude-api/SKILL.md) as the canonical example. Most upstream Anthropic skills predate this pattern and use informal "Use when …" phrasing; that is fine and does not need to be rewritten.
 3. Add the skill path to the appropriate plugin block in `.claude-plugin/marketplace.json`.
 4. Open a PR. Reviews are owned by the Skills maintainers (set in `CODEOWNERS` when that file is added — see rollout checklist in `ENTERPRISE_OVERVIEW.md`).
 
 ## Required SKILL.md frontmatter
 
+The upstream Agent Skills spec only requires `name` and `description`. Our enterprise standard extends that with a required `license` field so every shipped skill is explicit about its redistribution terms. (If you read the "Creating a Basic Skill" section further down — that's the upstream minimum; the table below is what we ship.)
+
 | Field | Required | Notes |
 |---|---|---|
 | `name` | yes | Lowercase, hyphenated. **Must** match the directory name. |
-| `description` | yes | Full sentence(s). Include trigger / non-trigger clauses so Claude fires the skill accurately. |
-| `license` | yes | `Complete terms in LICENSE.txt` for Apache-2.0 skills; `Proprietary. LICENSE.txt has complete terms` for source-available document skills. Keep the LICENSE.txt file beside the SKILL.md. |
+| `description` | yes | Full sentence(s). New skills should include explicit trigger / non-trigger clauses so Claude fires the skill accurately. |
+| `license` | yes (enterprise) | `Complete terms in LICENSE.txt` for Apache-2.0 skills; `Proprietary. LICENSE.txt has complete terms` for source-available document skills. Keep the LICENSE.txt file beside the SKILL.md. |
 | `allowed-tools` | optional | Scope tool access if the skill must run under a restricted allowlist. |
 
 ## License split (important)
