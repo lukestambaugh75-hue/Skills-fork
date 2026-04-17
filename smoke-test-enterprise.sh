@@ -1672,6 +1672,76 @@ while IFS= read -r line; do
 done < /tmp/step38_out.txt
 
 # =============================================================================
+section "39. render() return dict — required report keys present"
+# =============================================================================
+# render() returns a report dict. Callers depend on specific keys being
+# present: doc_type, output, path, lint. Verifies the contract so callers
+# don't get silent KeyError failures.
+
+python3 - <<'PY' > /tmp/step39_out.txt 2>&1 || true
+import sys, json, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN render-report: docxtpl not installed — skipping")
+    sys.exit(0)
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN render-report: sample input not found — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "report_test.docx"
+    report = render_docx.render("procedure", data, out)
+
+    required_keys = ["doc_type", "output", "path", "lint"]
+    missing = [k for k in required_keys if k not in report]
+    if missing:
+        print(f"FAIL render-report: missing keys in report: {missing}")
+    else:
+        print(f"PASS render-report: all required keys present ({required_keys})")
+
+    # Verify specific values
+    if report.get("doc_type") == "procedure":
+        print("PASS render-report: doc_type='procedure' correct")
+    else:
+        print(f"FAIL render-report: doc_type expected 'procedure', got {report.get('doc_type')!r}")
+
+    if report.get("path") == "docxtpl":
+        print("PASS render-report: path='docxtpl' (strict renderer confirmed)")
+    else:
+        print(f"FAIL render-report: path expected 'docxtpl', got {report.get('path')!r}")
+
+    lint = report.get("lint", {})
+    if isinstance(lint, dict) and "exit" in lint and "issue_count" in lint:
+        print(f"PASS render-report: lint sub-dict has expected shape (exit={lint['exit']})")
+    else:
+        print(f"FAIL render-report: lint sub-dict malformed: {lint!r}")
+
+    if out.exists():
+        print("PASS render-report: output file exists on disk")
+    else:
+        print("FAIL render-report: output file not created")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step39_out.txt
+
+# =============================================================================
 _reconcile_counters
 
 # =============================================================================
