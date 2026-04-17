@@ -1484,22 +1484,51 @@ with tempfile.TemporaryDirectory() as td:
     patches = render_docx._post_render_cover_fixup(out, data, "standard")
 
     if patches:
-        print(f"PASS cover-fixup: {len(patches)} placeholder(s) patched")
-        # Verify NAME and doc number appear in patched XML
+        print(f"PASS cover-fixup standard: {len(patches)} placeholder(s) patched")
         with zipfile.ZipFile(out) as z:
             all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
                                for n in z.namelist()
                                if n.startswith("word/") and n.endswith(".xml"))
         if "Hot Work Safety" in all_xml:
-            print("PASS cover-fixup: document_name present in patched XML")
+            print("PASS cover-fixup standard: document_name present in patched XML")
         else:
-            print("FAIL cover-fixup: document_name not found in patched XML")
+            print("FAIL cover-fixup standard: document_name not found in patched XML")
         if "ND-HSSE-001-2026" in all_xml:
-            print("PASS cover-fixup: doc_number present in patched XML")
+            print("PASS cover-fixup standard: doc_number present in patched XML")
         else:
-            print("FAIL cover-fixup: doc_number not found in patched XML")
+            print("FAIL cover-fixup standard: doc_number not found in patched XML")
     else:
-        print("WARN cover-fixup: no patches applied (placeholders may have changed in template)")
+        print("WARN cover-fixup standard: no patches applied (placeholders may have changed in template)")
+
+# Guidance cover fixup
+tpl_g = Path("skills/docx/templates/Guidance Template (Jinja).docx")
+if not tpl_g.exists():
+    print("WARN cover-fixup guidance: Guidance template not found — skipping")
+    sys.exit(0)
+
+with tempfile.TemporaryDirectory() as td2:
+    out_g = Path(td2) / "guidance_fixup_test.docx"
+    shutil.copy2(tpl_g, out_g)
+
+    data_g = {"document_name": "Remote Work Safety", "doc_number": "ND-HSSE-002-2026"}
+    patches_g = render_docx._post_render_cover_fixup(out_g, data_g, "guidance")
+
+    if patches_g:
+        print(f"PASS cover-fixup guidance: {len(patches_g)} placeholder(s) patched")
+        with zipfile.ZipFile(out_g) as z:
+            all_xml_g = " ".join(z.read(n).decode("utf-8", errors="replace")
+                                 for n in z.namelist()
+                                 if n.startswith("word/") and n.endswith(".xml"))
+        if "Remote Work Safety" in all_xml_g:
+            print("PASS cover-fixup guidance: document_name present in patched XML")
+        else:
+            print("FAIL cover-fixup guidance: document_name not found in patched XML")
+        if "ND-HSSE-002-2026" in all_xml_g:
+            print("PASS cover-fixup guidance: doc_number present in patched XML")
+        else:
+            print("FAIL cover-fixup guidance: doc_number not found in patched XML")
+    else:
+        print("WARN cover-fixup guidance: no patches applied (placeholders may have changed in template)")
 PY
 while IFS= read -r line; do
     if [[ "$line" == PASS\ * ]]; then
