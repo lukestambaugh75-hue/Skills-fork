@@ -1,0 +1,72 @@
+{
+  "procedure_title": "TODO — e.g. Confined Space Entry Procedure",
+  "doc_number": "ORG-NTD-000010-HSE-PRC-00000",
+  "header_date": "4/17/2026",
+  "revision": "0",
+  "revision_history": [
+    {
+      "rev": "0",
+      "date": "04-17-26",
+      "description": "Issued for Use",
+      "originator": "TODO",
+      "reviewer": "TODO",
+      "approver": "TODO"
+    }
+  ],
+  "change_log": [
+    {"revision": "0", "description": "Initial issue."}
+  ],
+  "purpose_text": "TODO — one paragraph stating what this procedure controls and why.",
+  "scope_text": "This procedure applies to all facilities owned or operated by NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), or any other affiliated entity. It applies to all employees, officers, directors, agents, consultants, contractors, and representatives.",
+  "roles_intro": "Roles and responsibilities for this procedure include the following.",
+  "roles": [
+    {
+      "role": "Managers or Designee",
+      "responsibilities": ["TODO"]
+    },
+    {
+      "role": "Facility and Workgroup Supervisors",
+      "responsibilities": ["TODO"]
+    },
+    {
+      "role": "Employees",
+      "responsibilities": ["TODO"]
+    },
+    {
+      "role": "HSSE Advisors",
+      "responsibilities": ["TODO"]
+    },
+    {
+      "role": "Contractors and other workers and visitors",
+      "responsibilities": ["Comply with this procedure as if directly employed by NextDecade."]
+    }
+  ],
+  "ppe_paragraphs": [
+    "TODO — describe required PPE for this procedure."
+  ],
+  "procedure_section_title": "TODO — e.g. Confined Space Entry Procedure",
+  "procedure_intro": "TODO — introductory paragraph for the steps section.",
+  "steps_intro": "The following steps shall be completed in order:",
+  "steps": [
+    {"step": "1", "description": "TODO"},
+    {"step": "2", "description": "TODO"},
+    {"step": "3", "description": "TODO"}
+  ],
+  "recordkeeping_text": "All records shall be retained per ORG-NTD-000010-HSE-PRC-00037 — Manual — Procedures, Definitions and Record Keeping Requirements.",
+  "terms_intro": "The following terms are specific to this document.",
+  "definitions": [
+    {"term": "TODO Term", "definition": "TODO definition."}
+  ],
+  "abbreviations_intro": "The following abbreviations and acronyms are specific to this document.",
+  "abbreviations": [
+    {"abbreviation": "HSSE", "definition": "Health, Safety, Security and Environment"},
+    {"abbreviation": "PPE", "definition": "Personal Protective Equipment"},
+    {"abbreviation": "RGLNG", "definition": "Rio Grande LNG"}
+  ],
+  "references": [
+    {"number": "ORG-NTD-000010-HSE-STD-00001", "title": "NextDecade HSSE Standard"}
+  ],
+  "appendices": [
+    {"title": "TODO Appendix Title", "body": "TODO appendix content or form reference."}
+  ]
+}

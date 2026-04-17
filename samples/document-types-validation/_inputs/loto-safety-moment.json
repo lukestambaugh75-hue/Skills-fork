@@ -1,0 +1,54 @@
+{
+  "brand": "RioGrandeLNG",
+  "title": "Lockout/Tagout Safety Moment",
+  "slides": [
+    {
+      "layout": "Custom Layout",
+      "title": "Lockout / Tagout",
+      "subtitle": "RGLNG Safety Moment — April 2026"
+    },
+    {
+      "layout": "Public Disclaimer"
+    },
+    {
+      "layout": "RG Single Narrative 18 Font",
+      "title": "What is LOTO?",
+      "bullets": [
+        "Lockout/Tagout (LOTO) controls hazardous energy during equipment servicing and maintenance.",
+        "Hazardous energy sources include: electrical, hydraulic, pneumatic, mechanical, chemical, and thermal.",
+        "Failure to control hazardous energy is one of the leading causes of serious workplace injuries.",
+        "At RGLNG, ALL energy sources must be isolated and verified at zero-energy state before work begins."
+      ]
+    },
+    {
+      "layout": "RG Dual Narrative",
+      "title": "The 6 Steps of LOTO",
+      "left_bullets": [
+        "1. Notify affected employees",
+        "2. Identify all energy sources",
+        "3. Isolate all energy sources",
+        "4. Apply lockout/tagout devices"
+      ],
+      "right_bullets": [
+        "5. Release stored energy (bleed, block, restrain)",
+        "6. Verify zero-energy state before work",
+        "",
+        "NEVER skip or shortcut any step."
+      ]
+    },
+    {
+      "layout": "RG Single Narrative 18 Font",
+      "title": "Golden Rules at RGLNG",
+      "bullets": [
+        "ALWAYS apply your personal lock — one worker, one lock, one key.",
+        "NEVER remove another person's lock or tag.",
+        "ALWAYS verify isolation yourself — don't rely on verbal confirmation.",
+        "ALWAYS follow the documented Energy Control Procedure for the specific equipment.",
+        "If in doubt — STOP and ask your supervisor."
+      ]
+    },
+    {
+      "layout": "23_Custom Layout"
+    }
+  ]
+}

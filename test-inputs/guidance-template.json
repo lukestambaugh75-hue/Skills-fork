@@ -1,0 +1,29 @@
+{
+  "document_name": "TODO — e.g. Remote Work Guidance",
+  "doc_number": "ORG-NTD-000010-COR-GDN-00000",
+  "purpose_text": "TODO — state the advisory intent. Guidance is not mandatory; describe who it applies to and what it helps with.",
+  "governance_text": "This Guidance is part of NextDecade's integrated Governance Framework. It supplements — and does not supersede — any applicable Standard or Procedure.",
+  "guideline_intro": "TODO — introductory sentence before the bulleted recommendations.",
+  "guideline_bullets": [
+    "TODO best-practice recommendation 1.",
+    "TODO best-practice recommendation 2.",
+    "TODO best-practice recommendation 3."
+  ],
+  "raci": {
+    "responsible": "TODO",
+    "accountable": "TODO",
+    "consulted": "TODO",
+    "informed": "TODO"
+  },
+  "approval": {
+    "issuer": "TODO — e.g. Director, Corporate Communications",
+    "adopted_by": "NextDecade Corporation",
+    "effective_date": "April 17, 2026"
+  },
+  "revision_history": [
+    {
+      "rev": "0",
+      "description": "Initial issue."
+    }
+  ]
+}
