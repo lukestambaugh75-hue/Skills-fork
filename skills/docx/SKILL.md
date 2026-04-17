@@ -17,7 +17,15 @@ python skills/docx/scripts/render_docx.py procedure <input.json> <output.docx> [
 The pipeline:
 1. **Lints** the Jinja-tagged template (`skills/docx/templates/Procedure Template (Jinja).docx`) against `procedure_schema.json`. Catches: smart-quote contamination of markers, run-split markers (Word-edit damage), missing required markers, unknown markers, unbalanced braces.
 2. **Renders via docxtpl** with `StrictUndefined` (any missing data raises with a clear field name). Preserves the embedded NextDecade logo in the header, cover graphic, watermark, and all brand chrome byte-identically.
-3. **Falls back to walk-and-replace** on the source `NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx` if the Jinja template is corrupted. Output is brand-correct either way; the fallback is slower per generation but never fails on template damage.
+3. **Falls back to lenient docxtpl** against the *same* Jinja template when the strict path raises (e.g., the input data is missing a key that the template references). The fallback uses `ChainableUndefined`, so missing data renders as empty strings instead of crashing.
+
+### Invariant: template is the sole source of formatting (Procedure + Standard)
+
+The DOCX template — `skills/docx/templates/Procedure Template (Jinja).docx` and `skills/docx/templates/Standard Template (Jinja).docx` — is the **authoritative source** for typography, colors, margins, headers, footers, and all visual formatting. Both render paths (strict and lenient docxtpl) read from the same file, so output formatting is guaranteed to match the template byte-for-byte for every theme/style setting. No programmatic brand-patching, no write-time font override, no second copy of the template that could drift — the template ships as the spec.
+
+If the brand needs to change, edit the template in Word. Do not patch theme1.xml or styles.xml from code. The `smoke-test-enterprise.sh` step 31 assertion verifies that rendered output's `theme1.xml` major font and Heading 1 color match the template's values; any programmatic override of formatting would fail that test.
+
+Guidance is handled by a separate legacy `walk_replace_guidance` path that uses `NextDecade-Claude-Project/03-original-templates/Guidance Template.docx`. That's a separate decision scoped for later.
 
 ### Source template
 
@@ -78,7 +86,7 @@ All list-of-object fields are variable-length — the docxtpl row loops produce 
 ### Known limitations
 
 1. **Table of Contents is stale after render.** docxtpl and walk-and-replace cannot refresh TOC field codes — only Word or LibreOffice can. Tell the user: "Open the file in Word, right-click the Table of Contents, choose 'Update Field' → 'Update entire table'." The body headings are correct; only the cached TOC display is stale.
-2. **Standard / Guidance cover pages.** The Jinja templates don't yet have `{{ document_name }}` / `{{ doc_number }}` markers inside text boxes. The render pipeline works around this with `_post_render_cover_fixup()` which patches the .docx XML after render. Provide `document_name` and `doc_number` in the input JSON — these fields are now required in the schemas.
+2. **Standard / Guidance cover pages.** The Jinja templates don't have `{{ document_name }}` / `{{ doc_number }}` markers inside text boxes (those positions are text-box content that docxtpl cannot reach). The render pipeline works around this with `_post_render_cover_fixup()` which patches the .docx XML after render. Provide `document_name` and `doc_number` in the input JSON. These fields are consumed by the cover-fixup, not docxtpl, so they are intentionally *not* listed in `required_markers` in the schemas — listing them there would cause every Standard/Guidance render to fail lint and drop into the fallback path.
 3. **Ampersand characters** in Standard/Guidance content: the walk-and-replace path (python-docx) handles `&` correctly. If using the docxtpl path, test that `&` renders — docxtpl's Jinja autoescape can strip it.
 
 ### When to fall back to from-scratch generation

@@ -38,16 +38,17 @@ LINTER = HERE / "lint_docx_template.py"
 UPLOADS = HERE.parent / "03-original-templates"
 DOC_TYPES = {
     "procedure": {
+        # Single source of formatting: the Jinja template is used by BOTH the
+        # happy-path (strict docxtpl) and the fallback (lenient docxtpl). The
+        # 03-original-templates/ copy is no longer consulted for procedure —
+        # the file on disk remains for archival only.
         "jinja_template": TEMPLATES / "Procedure Template (Jinja).docx",
-        "original_template_candidates": [
-            UPLOADS / "NextDecade Blank Procedure Template_Rev 1 April 9th 2026.docx",
-        ],
         "schema": TEMPLATES / "procedure_schema.json",
         "fallback": "walk_replace_procedure",
     },
     "standard": {
+        # Same single-source invariant as procedure above.
         "jinja_template": TEMPLATES / "Standard Template (Jinja).docx",
-        "original_template_candidates": [UPLOADS / "Standard Template.docx"],
         "schema": TEMPLATES / "standard_schema.json",
         "fallback": "walk_replace_standard",
     },
@@ -60,7 +61,8 @@ DOC_TYPES = {
 }
 
 def _resolve_original(doc_type: str) -> Path | None:
-    for cand in DOC_TYPES[doc_type]["original_template_candidates"]:
+    cfg = DOC_TYPES[doc_type]
+    for cand in cfg.get("original_template_candidates", []):
         if cand.exists():
             return cand
     return None
@@ -93,6 +95,26 @@ def render_via_docxtpl(data: dict, template: Path, output: Path) -> None:
     from docxtpl import DocxTemplate
     tpl = DocxTemplate(str(template))
     tpl.render(_xml_escape_data(data), jinja_env=_strict_env())
+    tpl.save(str(output))
+
+
+def render_via_docxtpl_lenient(data: dict, template: Path, output: Path) -> None:
+    """Fallback renderer for procedure + standard.
+
+    Reads from the SAME Jinja template as render_via_docxtpl so output
+    formatting (theme, styles, fonts, margins, headers, footers) is guaranteed
+    to match the happy path. The only difference is Undefined handling:
+    missing keys / attrs render as empty strings instead of raising, which is
+    what makes this a useful safety net when data is incomplete.
+
+    Guidance keeps its own walk-and-replace implementation below; procedure
+    and standard are both served by this function.
+    """
+    from docxtpl import DocxTemplate
+    from jinja2 import Environment, ChainableUndefined
+    env = Environment(undefined=ChainableUndefined, autoescape=False)
+    tpl = DocxTemplate(str(template))
+    tpl.render(_xml_escape_data(data), jinja_env=env)
     tpl.save(str(output))
 
 
@@ -331,350 +353,19 @@ def _wr_fill_tables(doc, table_plans, _set):
 
 
 def walk_replace_procedure(data: dict, output: Path):
-    """Walk-and-replace fallback for the NextDecade Blank Procedure Template
-    (Rev 1, April 9 2026 layout). Used when the Jinja template is damaged.
-
-    NOTE on XML escaping: this fallback writes data via python-docx's .text
-    setter, which handles XML entity escaping internally (& -> &amp; etc.).
-    The docxtpl path uses _xml_escape_data() because docxtpl injects text
-    directly into Word XML. Both approaches produce correct output.
-
-    Targets the new schema (procedure_title, doc_number, header_date, revision,
-    revision_history, change_log, purpose_text, scope_text, roles_intro, roles,
-    ppe_paragraphs, procedure_section_title, procedure_intro, steps_intro,
-    steps, recordkeeping_text, terms_intro, definitions, abbreviations_intro,
-    abbreviations, references, appendices).
+    """Fallback for procedure. Renders via lenient docxtpl against the same
+    Jinja template used by the happy path. See render_via_docxtpl_lenient for
+    the why; the short version is: one template file, one source of
+    formatting, drift impossible by construction.
     """
-    original = _resolve_original("procedure")
-    if original is None:
-        raise RuntimeError("No procedure template available for walk-and-replace fallback.")
-    from docx import Document
-    from copy import deepcopy
-    from docx.text.paragraph import Paragraph
-    shutil.copy2(original, output)
-    doc = Document(str(output))
-
-    def _set(p, text):
-        runs = p.runs
-        if not runs: p.add_run(text); return
-        runs[0].text = text
-        for r in runs[1:]:
-            r._element.getparent().remove(r._element)
-
-    # ---- Cover page ----
-    for p in doc.paragraphs:
-        if p.style and p.style.name == "Title Cover Page (Proc Title)":
-            _set(p, data["procedure_title"]); break
-    for p in doc.paragraphs:
-        if p.style and p.style.name == "DocNumberOnCover":
-            _set(p, data["doc_number"]); break
-
-    # ---- Body H1 / body paragraph replacements (style-scoped to avoid TOC) ----
-    def _set_body_after_h1(h1_text: str, new_text: str, body_substring: str = None):
-        """Replace the first BodyText paragraph after the H1 matching ``h1_text``.
-        If ``body_substring`` is set, instead match the BodyText paragraph that
-        contains that substring (anywhere)."""
-        if body_substring is not None:
-            for p in doc.paragraphs:
-                if p.style and p.style.name == "Body Text" and body_substring in p.text:
-                    _set(p, new_text); return
-            return
-        for i, p in enumerate(doc.paragraphs):
-            if p.style and p.style.name == "RGLNG 1 (Hdg1)" and h1_text.lower() in p.text.lower():
-                # find next BodyText
-                for q in doc.paragraphs[i+1:]:
-                    if q.style and q.style.name == "RGLNG 1 (Hdg1)": return
-                    if q.style and q.style.name == "Body Text":
-                        _set(q, new_text); return
-                return
-
-    _set_body_after_h1(None, data["purpose_text"],
-                       body_substring="The purpose of this procedure is to XXXX.")
-    _set_body_after_h1(None, data["scope_text"],
-                       body_substring="This procedure applies to all individuals")
-    _set_body_after_h1(None, data["roles_intro"],
-                       body_substring="Roles and responsibilities for this procedure")
-    _set_body_after_h1(None, data["procedure_intro"],
-                       body_substring="Procedure body goes here.")
-    _set_body_after_h1(None, data["steps_intro"],
-                       body_substring="The XXX completes the following:")
-    _set_body_after_h1(None, data["recordkeeping_text"],
-                       body_substring="Record keeping and training requirements")
-    _set_body_after_h1(None, data["terms_intro"],
-                       body_substring="The following terms are specific to this document.")
-    _set_body_after_h1(None, data["abbreviations_intro"],
-                       body_substring="The following abbreviations and acronyms are specific to this document.")
-
-    # Section 5.0 H1 — replace via style filter so we don't hit the TOC
-    for p in doc.paragraphs:
-        if p.style and p.style.name == "RGLNG 1 (Hdg1)" \
-                and "Procedure Title (Enter procedure here.)" in p.text:
-            _set(p, data["procedure_section_title"]); break
-
-    # 4.1 PPE — two source paragraphs; replace each, then clone/extend if more
-    ppe_paragraphs = [p for p in doc.paragraphs
-                      if p.style and p.style.name == "Body Text"
-                      and ("In all areas except administrative offices" in p.text
-                           or p.text.startswith("Refer to ORG-NDT-000010-SAF-PRC-00012"))]
-    target_ppe = data["ppe_paragraphs"]
-    for i, txt in enumerate(target_ppe):
-        if i < len(ppe_paragraphs):
-            _set(ppe_paragraphs[i], txt)
-        else:
-            last = ppe_paragraphs[-1]
-            new_el = deepcopy(last._element)
-            last._element.addnext(new_el)
-            new_p = Paragraph(new_el, last._parent)
-            _set(new_p, txt)
-            ppe_paragraphs.append(new_p)
-    # Trim extra source PPE paragraphs if data has fewer
-    for extra in ppe_paragraphs[len(target_ppe):]:
-        extra._element.getparent().remove(extra._element)
-
-    # ---- Tables ----
-    def _find_table(predicate):
-        for t in doc.tables:
-            headers = [c.text.strip() for c in t.rows[0].cells]
-            if predicate(headers):
-                return t
-        return None
-
-    def _fill_simple_table(t, data_rows: list[tuple]):
-        """Fill table data rows starting from row 1 with ``data_rows``
-        (each tuple has one string per cell). Adds rows if needed; deletes
-        extra prefilled rows."""
-        prefilled = list(t.rows)[1:]
-        for i, tup in enumerate(data_rows):
-            if i < len(prefilled):
-                row = prefilled[i]
-                for j, cell_text in enumerate(tup):
-                    if j < len(row.cells):
-                        _set(row.cells[j].paragraphs[0], cell_text)
-            else:
-                new_row = t.add_row()
-                for j, cell_text in enumerate(tup):
-                    if j < len(new_row.cells):
-                        new_row.cells[j].text = cell_text
-        for r in prefilled[len(data_rows):]:
-            r._element.getparent().remove(r._element)
-
-    # Revision History
-    rev_t = _find_table(lambda h: h and h[0] == "Revision History")
-    if rev_t is not None:
-        # Skip the merged "Revision History" row AND the column-header row
-        # (rows 0 and 1). Data starts at row 2.
-        data_rev_rows = [(r["rev"], r["date"], r["description"],
-                          r["originator"], r["reviewer"], r["approver"])
-                         for r in data["revision_history"]]
-        prefilled = list(rev_t.rows)[2:]
-        for i, tup in enumerate(data_rev_rows):
-            if i < len(prefilled):
-                row = prefilled[i]
-                for j, cell_text in enumerate(tup):
-                    _set(row.cells[j].paragraphs[0], cell_text)
-            else:
-                new_row = rev_t.add_row()
-                for j, cell_text in enumerate(tup):
-                    new_row.cells[j].text = cell_text
-        for r in prefilled[len(data_rev_rows):]:
-            r._element.getparent().remove(r._element)
-
-    # Change Log
-    clog_t = _find_table(lambda h: tuple(h) == ("Revision", "Description of Changes and Notes"))
-    if clog_t is not None:
-        _fill_simple_table(clog_t, [(c["revision"], c["description"]) for c in data["change_log"]])
-
-    # Roles & Responsibilities (responsibilities cell takes a list rendered as paragraphs)
-    roles_t = _find_table(lambda h: tuple(h) == ("Role", "Responsibilities"))
-    if roles_t is not None:
-        prefilled = list(roles_t.rows)[1:]
-        for i, role in enumerate(data["roles"]):
-            if i < len(prefilled):
-                row = prefilled[i]
-            else:
-                row = roles_t.add_row()
-            _set(row.cells[0].paragraphs[0], role["role"])
-            # Wipe the responsibilities cell and write each responsibility as a paragraph
-            r_cell = row.cells[1]
-            for extra in list(r_cell.paragraphs[1:]):
-                extra._element.getparent().remove(extra._element)
-            lines = role["responsibilities"]
-            if lines:
-                _set(r_cell.paragraphs[0], lines[0])
-                for extra in lines[1:]:
-                    r_cell.add_paragraph(extra)
-            else:
-                _set(r_cell.paragraphs[0], "")
-        for r in prefilled[len(data["roles"]):]:
-            r._element.getparent().remove(r._element)
-
-    # Steps
-    steps_t = _find_table(lambda h: tuple(h) == ("Step", "Description"))
-    if steps_t is not None:
-        _fill_simple_table(steps_t, [(s["step"], s["description"]) for s in data["steps"]])
-
-    # Definitions
-    terms_t = _find_table(lambda h: tuple(h) == ("Term", "Definition"))
-    if terms_t is not None:
-        _fill_simple_table(terms_t, [(d["term"], d["definition"]) for d in data["definitions"]])
-
-    # Abbreviations
-    abbr_t = _find_table(lambda h: tuple(h) == ("Abbreviation/Acronym", "Definition"))
-    if abbr_t is not None:
-        _fill_simple_table(abbr_t, [(a["abbreviation"], a["definition"]) for a in data["abbreviations"]])
-
-    # References
-    refs_t = _find_table(lambda h: tuple(h) == ("Document Number", "Document Title"))
-    if refs_t is not None:
-        _fill_simple_table(refs_t, [(ref["number"], ref["title"]) for ref in data["references"]])
-
-    # Appendices: source has two prefilled headings ("Example 1", "Example 2");
-    # extend or trim to match data["appendices"]. Each appendix = 1 heading + 1 body.
-    apdx_paras = [p for p in doc.paragraphs
-                  if p.style and p.style.name == "RGLNG Appendix Hdg 1"]
-    target_n = len(data["appendices"])
-    if apdx_paras:
-        # Each prefilled appendix has structure: heading, body, body (3 paras)
-        # Find body paragraphs immediately after each appendix heading
-        def _bodies_after(heading_p, n_max=2):
-            bodies = []
-            after = heading_p._element.getnext()
-            while after is not None and len(bodies) < n_max:
-                from docx.oxml.ns import qn
-                if after.tag != qn("w:p"): break
-                # Check style
-                pPr = after.find(qn("w:pPr"))
-                if pPr is not None:
-                    pStyle = pPr.find(qn("w:pStyle"))
-                    if pStyle is not None and pStyle.get(qn("w:val")) == "RGLNGAppendixHdg1":
-                        break
-                bodies.append(Paragraph(after, heading_p._parent))
-                after = after.getnext()
-            return bodies
-
-        # Reuse / extend / trim the appendix slots
-        if target_n == 0:
-            # Delete every appendix block
-            for h in apdx_paras:
-                bodies = _bodies_after(h)
-                for b in bodies:
-                    b._element.getparent().remove(b._element)
-                h._element.getparent().remove(h._element)
-        else:
-            # Make sure we have target_n appendix slots; clone the LAST one as needed
-            while len(apdx_paras) < target_n:
-                last_h = apdx_paras[-1]
-                last_bodies = _bodies_after(last_h)
-                # Clone heading + bodies and append at end of body
-                new_h_el = deepcopy(last_h._element)
-                last_anchor = (last_bodies[-1]._element
-                               if last_bodies else last_h._element)
-                last_anchor.addnext(new_h_el)
-                new_h = Paragraph(new_h_el, last_h._parent)
-                anchor = new_h_el
-                for b in last_bodies:
-                    new_b_el = deepcopy(b._element)
-                    anchor.addnext(new_b_el); anchor = new_b_el
-                apdx_paras.append(new_h)
-            # Trim extras
-            for h in apdx_paras[target_n:]:
-                bodies = _bodies_after(h)
-                for b in bodies:
-                    b._element.getparent().remove(b._element)
-                h._element.getparent().remove(h._element)
-            apdx_paras = apdx_paras[:target_n]
-            # Fill
-            for h, app in zip(apdx_paras, data["appendices"]):
-                _set(h, app["title"])
-                bodies = _bodies_after(h)
-                if bodies:
-                    _set(bodies[0], app["body"])
-                    # Delete extra prefilled body paragraphs
-                    for extra in bodies[1:]:
-                        extra._element.getparent().remove(extra._element)
-
-    # ---- Delete the source-template "Sample Styles" section so the fallback
-    # output matches the docxtpl path (which removes that section in the Jinja
-    # template). The section runs from H1 "Sample Styles" through (exclusive of)
-    # H1 "Definitions".
-    from docx.oxml.ns import qn as _qn
-    body_el = doc.element.body
-    body_children = list(body_el)
-    def _txt(el):
-        return "".join(t.text or "" for t in el.iter(_qn("w:t")))
-    def _is_h1(el, label):
-        if el.tag != _qn("w:p"): return False
-        pStyle = el.find(_qn("w:pPr") + "/" + _qn("w:pStyle"))
-        if pStyle is None or pStyle.get(_qn("w:val")) != "RGLNG1Hdg1": return False
-        return _txt(el).strip() == label
-    start, end = None, None
-    for i, el in enumerate(body_children):
-        if _is_h1(el, "Sample Styles"): start = i
-        elif start is not None and _is_h1(el, "Definitions"):
-            end = i; break
-    if start is not None and end is not None:
-        for el in body_children[start:end]:
-            body_el.remove(el)
-
-    # ---- Header (header2.xml is referenced from the section's headerReference)
-    # Header text replacement requires editing header2.xml inside the .docx.
-    # python-docx doesn't make this trivial; do it via lxml on the part XML.
-    _patch_header2(doc, data)
-
-    doc.save(str(output))
-
-
-def _patch_header2(doc, data: dict):
-    """Replace static text in word/header2.xml with the values from ``data``."""
-    from lxml import etree
-    W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-    # Find the header part; python-docx exposes section.header.part
-    for section in doc.sections:
-        for header in (section.header, section.first_page_header, section.even_page_header):
-            try:
-                part = header.part
-            except Exception:
-                continue
-            xml = part.element
-            for p in xml.iter(W + "p"):
-                runs = list(p.iter(W + "r"))
-                if not runs: continue
-                full = "".join("".join(t.text or "" for t in r.iter(W + "t")) for r in runs)
-                target = None
-                if full.strip().startswith("Date:") and "header_date" in data:
-                    target = ("Date: ", data["header_date"])
-                elif full.strip() == "Blank Procedure Template":
-                    target = (None, data["procedure_title"])
-                elif full.strip().startswith("Rev.:"):
-                    target = ("Rev.: ", data["revision"])
-                elif "000-NTD-000-xxx-xxx-000xx" in full:
-                    target = (None, data["doc_number"])
-                if target is None: continue
-                prefix, value = target
-                first_run = runs[0]
-                for t in first_run.findall(W + "t"):
-                    first_run.remove(t)
-                t_el = etree.SubElement(first_run, W + "t")
-                t_el.text = (prefix or "") + value
-                t_el.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
-                for r in runs[1:]:
-                    parent = r.getparent()
-                    if parent is not None:
-                        parent.remove(r)
+    cfg = DOC_TYPES["procedure"]
+    render_via_docxtpl_lenient(data, cfg["jinja_template"], output)
 
 
 def walk_replace_standard(data: dict, output: Path):
-    original = _resolve_original("standard")
-    if original is None: raise RuntimeError("No standard template available for walk-and-replace fallback.")
-    doc, _set, _h1, _fill_after, deepcopy, Paragraph = _wr_common_setup(original, output)
-    _fill_after(_h1("INTRODUCTION"),             data["introduction_text"])
-    _fill_after(_h1("SCOPE"),                    data["scope_text"])
-    _fill_after(_h1("INTEGRATED GOVERNANCE"),    data["governance_text"])
-    _fill_after(_h1("EXCEPTION REQUEST"),        data["exception_text"])
-    _fill_after(_h1("CONTINUOUS IMPROVEMENT"),   data["continuous_text"])
-    _wr_fill_content_sections(doc, data, _set, deepcopy, Paragraph)
-    _wr_fill_tables(doc, _std_proc_table_plans(data, _set), _set)
-    doc.save(str(output))
+    """Fallback for standard. Same design as walk_replace_procedure above."""
+    cfg = DOC_TYPES["standard"]
+    render_via_docxtpl_lenient(data, cfg["jinja_template"], output)
 
 
 def walk_replace_guidance(data: dict, output: Path):
@@ -724,43 +415,6 @@ def walk_replace_guidance(data: dict, output: Path):
 
     _wr_fill_tables(doc, _table_plans_guidance(data, _set), _set)
     doc.save(str(output))
-
-
-def _std_proc_table_plans(data, _set):
-    def fill_defs(t):
-        data_rows = list(t.rows)[1:]
-        for i, d in enumerate(data["definitions"]):
-            if i < len(data_rows):
-                r = data_rows[i]
-                _set(r.cells[0].paragraphs[0], d["no"])
-                _set(r.cells[1].paragraphs[0], d["term"])
-                _set(r.cells[2].paragraphs[0], d["definition"])
-            else:
-                new_row = t.add_row()
-                new_row.cells[0].text = d["no"]
-                new_row.cells[1].text = d["term"]
-                new_row.cells[2].text = d["definition"]
-        for r in data_rows[len(data["definitions"]):]:
-            r._element.getparent().remove(r._element)
-
-    def fill_refs(t):
-        data_rows = list(t.rows)[1:]
-        for i, ref in enumerate(data["references"]):
-            if i < len(data_rows):
-                r = data_rows[i]
-                _set(r.cells[0].paragraphs[0], ref["title"])
-                _set(r.cells[1].paragraphs[0], ref["number"])
-            else:
-                new_row = t.add_row()
-                new_row.cells[0].text = ref["title"]
-                new_row.cells[1].text = ref["number"]
-        for r in data_rows[len(data["references"]):]:
-            r._element.getparent().remove(r._element)
-
-    return [
-        {"match": ("No.", "Term", "Definition"), "apply": fill_defs},
-        {"match": ("Title", "Document Number"), "apply": fill_refs},
-    ] + _table_plans_common(data, _set)
 
 
 def _table_plans_guidance(data, _set):

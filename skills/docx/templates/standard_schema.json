@@ -4,8 +4,6 @@
   "source_template": "Standard Template.docx",
   "description": "Input schema for NextDecade Standard documents. Standards define mandatory levels of quality and expectations. Section order: INTRODUCTION, SCOPE, INTEGRATED GOVERNANCE FRAMEWORK, DEFINITIONS, REFERENCES, content section(s), EXCEPTION REQUEST, CONTINUOUS IMPROVEMENT, OWNERSHIP, APPROVAL, REVISION HISTORY. Pass a dict matching this shape to render_docx.render('standard', data, output).",
   "required_markers": [
-    "document_name",
-    "doc_number",
     "introduction_text",
     "scope_text",
     "governance_text",
@@ -18,6 +16,7 @@
     "approval",
     "revision_history"
   ],
+  "_required_markers_note": "document_name and doc_number are consumed by the post-render cover-page fixup (it substitutes placeholder text NAME and xxx-xxx-xxx-xxx-xxx-##### inside text boxes and headers). They are not Jinja {{ }} markers in the template, so they are intentionally absent from required_markers. Moving them into required_markers caused every Standard render to fail lint and fall back to walk-and-replace against a separate original-template copy, which created drift risk. Do not re-add them here.",
   "optional_markers": ["s", "b", "d", "ref", "rev"],
   "fields": {
     "document_name": {
