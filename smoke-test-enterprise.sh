@@ -1546,6 +1546,21 @@ with tempfile.TemporaryDirectory() as td2:
             print("FAIL cover-fixup guidance: doc_number not found in patched XML")
     else:
         print("WARN cover-fixup guidance: no patches applied (placeholders may have changed in template)")
+
+# Procedure cover fixup must be a no-op (procedures use Jinja markers, not XML patching)
+tpl_p = Path("skills/docx/templates/Procedure Template (Jinja).docx")
+if tpl_p.exists():
+    with tempfile.TemporaryDirectory() as td3:
+        out_p = Path(td3) / "procedure_fixup_test.docx"
+        shutil.copy2(tpl_p, out_p)
+        data_p = {"document_name": "Should Not Patch", "doc_number": "ND-NOOP-000"}
+        patches_p = render_docx._post_render_cover_fixup(out_p, data_p, "procedure")
+        if patches_p:
+            print(f"FAIL cover-fixup procedure: expected no patches but got {len(patches_p)}: {patches_p}")
+        else:
+            print("PASS cover-fixup procedure: no patches applied (procedure uses Jinja markers, not XML fixup)")
+else:
+    print("WARN cover-fixup procedure: Procedure template not found — skipping")
 PY
 while IFS= read -r line; do
     if [[ "$line" == PASS\ * ]]; then
