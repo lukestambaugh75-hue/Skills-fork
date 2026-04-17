@@ -1291,6 +1291,56 @@ while IFS= read -r line; do
 done < /tmp/step33_out.txt
 
 # =============================================================================
+section "34. API surface audit — back-compat shims and dead functions removed"
+# =============================================================================
+# Verify the public API of render_docx.py is clean after the strict-only
+# refactor: no back-compat shims, no walk-replace helpers, no dead code that
+# could confuse callers or mask regressions.
+
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_docx', 'skills/docx/scripts/render_docx.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+
+# Functions that MUST exist (public API)
+must_exist = ['render', 'render_via_docxtpl', 'convert_to_pdf']
+for fn in must_exist:
+    if hasattr(mod, fn):
+        print(f'OK:{fn} present in public API')
+    else:
+        print(f'FAIL:{fn} missing from public API')
+
+# Functions that MUST NOT exist (removed in strict-only refactor)
+must_not_exist = [
+    'render_procedure',           # back-compat shim
+    'render_via_docxtpl_lenient', # lenient renderer
+    'walk_replace_procedure',     # walk-and-replace fallbacks
+    'walk_replace_standard',
+    'walk_replace_guidance',
+    '_wr_common_setup',           # walk-and-replace helpers
+    '_wr_fill_content_sections',
+    '_wr_fill_tables',
+    '_table_plans_common',
+    '_table_plans_guidance',
+    '_resolve_original',          # only used by walk-replace
+    'FALLBACK_FNS',               # fallback registry
+]
+for fn in must_not_exist:
+    if hasattr(mod, fn):
+        print(f'FAIL:{fn} still present — should have been removed in strict-only refactor')
+    else:
+        print(f'OK:{fn} absent (clean API surface)')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
 _reconcile_counters
