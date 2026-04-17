@@ -1390,6 +1390,62 @@ for fn in must_not_exist:
 done
 
 # =============================================================================
+section "35. XML escape safety — _xml_escape_data handles &, <, > in all types"
+# =============================================================================
+# _xml_escape_data is the safety guard between user input and Word XML.
+# If it fails to escape a single & or < in any nested string, the rendered
+# .docx XML will be malformed. Verify the function handles strings, dicts,
+# lists, and nested structures.
+
+python3 -c "
+import sys, importlib.util, os
+os.chdir('$(pwd)')
+spec = importlib.util.spec_from_file_location('render_docx', 'skills/docx/scripts/render_docx.py')
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+fn = mod._xml_escape_data
+
+# String escaping
+cases = [
+    ('ampersand', 'A & B', 'A &amp; B'),
+    ('less-than', 'A < B', 'A &lt; B'),
+    ('greater-than', 'A > B', 'A &gt; B'),
+    ('combined', 'A & B < C > D', 'A &amp; B &lt; C &gt; D'),
+    ('safe string', 'Hello World', 'Hello World'),
+    ('number passthrough', 42, 42),
+    ('none passthrough', None, None),
+]
+for label, inp, expected in cases:
+    result = fn(inp)
+    if result == expected:
+        print(f'OK:escape {label}: {repr(inp)!r} -> {repr(result)!r}')
+    else:
+        print(f'FAIL:escape {label}: expected {repr(expected)!r}, got {repr(result)!r}')
+
+# Dict recursion
+d = {'title': 'A & B', 'nested': {'text': '1 < 2'}}
+r = fn(d)
+if r == {'title': 'A &amp; B', 'nested': {'text': '1 &lt; 2'}}:
+    print('OK:escape dict recursive: nested dict escaped correctly')
+else:
+    print(f'FAIL:escape dict recursive: {r}')
+
+# List recursion
+lst = ['A & B', 'C < D', 42]
+r = fn(lst)
+if r == ['A &amp; B', 'C &lt; D', 42]:
+    print('OK:escape list recursive: list items escaped correctly')
+else:
+    print(f'FAIL:escape list recursive: {r}')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
 _reconcile_counters
