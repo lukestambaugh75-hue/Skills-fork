@@ -131,7 +131,7 @@ gap-report.md                     # Gap analysis (upload as knowledge)
 | 1-5 | 10 | 5 tracked files > 5MB (PPTX, POTX, PDF, ZIP) | Low | Move `Use this to share.zip` to Releases; others are templates that must be tracked |
 | 6-8 | 11 | 3 removable items for fresh upload | Advisory | See section 3 above |
 | 9 | 29 | 8 items identified as removable | Advisory | Overlaps with section 11 |
-| 10-11 | 30 | `render_docx.py` and `render_pptx.py` DIVERGED between `skills/` and `04-scripts/` | Medium | Decide which is canonical and sync. `skills/` should be canonical since it's the skill runtime path; `04-scripts/` is the Claude Projects copy |
+| 10-11 | 30 | ~~`render_docx.py` and `render_pptx.py` DIVERGED~~ — RESOLVED | — | The sha256 mismatch was a false alarm: only 3 path-constant lines differ (required because each file resolves templates relative to its own directory). The smoke test now filters those lines before comparing and reports `in sync: … (functional code identical, paths adjusted)`. |
 
 ---
 
@@ -139,9 +139,9 @@ gap-report.md                     # Gap analysis (upload as knowledge)
 
 ### 5a. Two copies of everything
 
-Templates, schemas, and scripts exist in both `skills/docx/` and `NextDecade-Claude-Project/`. Schemas are in sync (section 6 PASS), templates are in sync (section 14 PASS), but scripts have DIVERGED (section 30 WARN). This creates maintenance burden -- edits to render_docx.py must be mirrored.
+Templates, schemas, and scripts exist in both `skills/docx/` and `NextDecade-Claude-Project/`. Schemas are in sync (section 6 PASS), templates are in sync (section 14 PASS), and scripts are functionally in sync (section 30 PASS after filtering path constants). The only legitimate per-copy difference is the `TEMPLATES` / `UPLOADS` path constants at the top of `render_docx.py` / `render_pptx.py`, which must point at each copy's local template directory. Edits to render logic must still be mirrored; the smoke test's section 30 catches any functional drift.
 
-**Recommendation**: Make `skills/` canonical. Add a `sync-to-project.sh` script or symlinks.
+**Recommendation**: Keep `skills/` as the edit-first location. Before committing, mirror any render-logic changes to `04-scripts/` and re-run the smoke test to confirm section 30 stays green.
 
 ### 5b. Schema version inconsistency
 

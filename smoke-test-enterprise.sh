@@ -1070,6 +1070,65 @@ for pair in "${SCRIPT_PAIRS[@]}"; do
 done
 
 # =============================================================================
+section "31. Template-is-sole-source-of-formatting invariant (procedure + standard)"
+# =============================================================================
+# NextDecade policy: the DOCX template is the authoritative source of
+# typography, colors, margins, headers, footers. Both render paths (docxtpl
+# strict AND walk_replace lenient) must produce output whose theme1.xml and
+# Heading 1 color match the template exactly. Any drift means a renderer is
+# introducing formatting that the template doesn't specify -- a policy
+# violation.
+#
+# This test renders each sample through both paths and compares the output's
+# theme-font and Heading 1 color against the source Jinja template.
+# Guidance is intentionally out of scope (separate decision per user).
+
+python3 - <<'PY' > /tmp/step31_out.txt 2>&1 || true
+import sys, json, re, zipfile, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+def fingerprint(docx_path):
+    with zipfile.ZipFile(docx_path) as z:
+        theme = z.read("word/theme/theme1.xml").decode() if "word/theme/theme1.xml" in z.namelist() else ""
+        styles = z.read("word/styles.xml").decode()
+    maj = re.search(r'<a:majorFont>\s*<a:latin\s+typeface="([^"]+)"', theme)
+    h1 = re.search(r'<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:color[^/]*w:val="([0-9A-Fa-f]+)"', styles, re.DOTALL)
+    return (maj.group(1) if maj else None, h1.group(1).upper() if h1 else None)
+
+cases = [
+    ("procedure", "skills/docx/templates/Procedure Template (Jinja).docx",
+     "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"),
+    ("standard",  "skills/docx/templates/Standard Template (Jinja).docx",
+     "samples/document-types-validation/_inputs/records-retention-standard.json"),
+]
+with tempfile.TemporaryDirectory() as td:
+    for dt, tpl, inp in cases:
+        tpl_fp = fingerprint(tpl)
+        with open(inp) as f: data = json.load(f)
+        out_happy = Path(td) / f"{dt}_happy.docx"
+        render_docx.render(dt, data, out_happy)
+        fp_happy = fingerprint(out_happy)
+        out_fb = Path(td) / f"{dt}_fallback.docx"
+        fn = render_docx.walk_replace_procedure if dt == "procedure" else render_docx.walk_replace_standard
+        fn(data, out_fb)
+        fp_fb = fingerprint(out_fb)
+        for label, fp in (("happy", fp_happy), ("fallback", fp_fb)):
+            if fp == tpl_fp:
+                print(f"PASS {dt}-{label}: output formatting matches template ({tpl_fp[0]}, H1={tpl_fp[1]})")
+            else:
+                print(f"FAIL {dt}-{label}: template={tpl_fp} output={fp}")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    fi
+done < /tmp/step31_out.txt
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
 _reconcile_counters

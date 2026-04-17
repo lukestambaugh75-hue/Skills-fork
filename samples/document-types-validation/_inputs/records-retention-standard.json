@@ -69,6 +69,6 @@
     "effective_date": "April 15, 2026"
   },
   "revision_history": [
-    {"number": "0", "description": "Initial issuance."}
+    {"rev": "0", "description": "Initial issuance."}
   ]
 }
