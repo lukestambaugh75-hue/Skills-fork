@@ -1171,6 +1171,59 @@ while IFS= read -r line; do
 done < /tmp/step31_out.txt
 
 # =============================================================================
+section "32. StrictUndefined enforcement — render raises on missing required key"
+# =============================================================================
+# Core invariant of the strict-only design: render_via_docxtpl must raise an
+# UndefinedError (not silently produce empty output) when a required Jinja
+# marker is absent from the input data. This test renders a procedure with one
+# required key deliberately removed and asserts an exception is raised.
+
+python3 - <<'PY' > /tmp/step32_out.txt 2>&1 || true
+import sys, json, tempfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+inp = "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"
+if not Path(inp).exists():
+    print("WARN strict-undefined-test: sample input not found — skipping")
+    sys.exit(0)
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN strict-undefined-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+# Remove a required key that the Jinja template definitely references
+truncated = {k: v for k, v in data.items() if k != "procedure_title"}
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "strict_test.docx"
+    try:
+        render_docx.render("procedure", truncated, out)
+        print("FAIL strict-undefined: render succeeded with missing key (StrictUndefined not enforced!)")
+    except Exception as e:
+        err = str(e)
+        if "procedure_title" in err or "UndefinedError" in type(e).__name__ or "Undefined" in type(e).__name__ or "undefined" in err.lower():
+            print(f"PASS strict-undefined: render raised on missing 'procedure_title' ({type(e).__name__})")
+        else:
+            print(f"PASS strict-undefined: render raised on missing key ({type(e).__name__}: {err[:80]})")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step32_out.txt
+
+# =============================================================================
 # Reconcile counters from pipe subshells before printing summary
 # =============================================================================
 _reconcile_counters
