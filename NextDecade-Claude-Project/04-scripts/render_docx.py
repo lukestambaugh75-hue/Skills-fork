@@ -165,15 +165,23 @@ def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
                 changed = True
 
     elif doc_type in ("standard", "guidance"):
+        from docx.oxml.ns import qn as _qn
         scaffolding_markers = [
             "[CONTENT TITLE]",
             "Enter text here",
             "Click here to enter text",
         ]
-        for p in list(doc.paragraphs):
+        # Use recursive XPath to find ALL paragraphs including those inside
+        # <w:sdt> content controls (e.g., the Table of Contents). doc.paragraphs
+        # only returns direct <w:body> children and misses SDT-wrapped paragraphs
+        # such as TOC entries that still reference "[CONTENT TITLE]" anchors.
+        for p_el in list(doc.element.body.findall('.//' + _qn('w:p'))):
+            text = "".join(
+                t.text or "" for t in p_el.findall('.//' + _qn('w:t'))
+            )
             for marker in scaffolding_markers:
-                if marker in p.text:
-                    p._element.getparent().remove(p._element)
+                if marker in text:
+                    p_el.getparent().remove(p_el)
                     changed = True
                     break
 

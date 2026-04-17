@@ -1503,6 +1503,58 @@ while IFS= read -r line; do
 done < /tmp/step36_out.txt
 
 # =============================================================================
+section "37. _remove_template_scaffolding — known markers absent in rendered output"
+# =============================================================================
+# After a full render, the scaffolding markers ("[CONTENT TITLE]", "Enter text
+# here", "Click here to enter text") should have been replaced by Jinja content
+# and any survivors should have been removed by _remove_template_scaffolding.
+# Test: render the Standard sample and verify no scaffolding markers survive.
+
+python3 - <<'PY' > /tmp/step37_out.txt 2>&1 || true
+import sys, json, tempfile, zipfile
+from pathlib import Path
+sys.path.insert(0, "skills/docx/scripts")
+import render_docx
+
+inp = "samples/document-types-validation/_inputs/records-retention-standard.json"
+if not Path(inp).exists():
+    print("WARN scaffolding-test: standard sample input not found — skipping")
+    sys.exit(0)
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN scaffolding-test: docxtpl not installed — skipping")
+    sys.exit(0)
+
+with open(inp) as f:
+    data = json.load(f)
+
+with tempfile.TemporaryDirectory() as td:
+    out = Path(td) / "standard_scaffolding_test.docx"
+    render_docx.render("standard", data, out)
+    # Extract all text from rendered docx
+    with zipfile.ZipFile(out) as z:
+        all_xml = " ".join(z.read(n).decode("utf-8", errors="replace")
+                           for n in z.namelist()
+                           if n.startswith("word/") and n.endswith(".xml"))
+    markers = ["[CONTENT TITLE]", "Enter text here", "Click here to enter text"]
+    found = [m for m in markers if m in all_xml]
+    if found:
+        print(f"FAIL scaffolding-removal: markers still present in rendered output: {found}")
+    else:
+        print("PASS scaffolding-removal: no scaffolding markers in rendered standard output")
+PY
+while IFS= read -r line; do
+    if [[ "$line" == PASS\ * ]]; then
+        pass "${line#PASS }"
+    elif [[ "$line" == FAIL\ * ]]; then
+        fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
+    fi
+done < /tmp/step37_out.txt
+
+# =============================================================================
 _reconcile_counters
 
 # =============================================================================
