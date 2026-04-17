@@ -1,19 +1,19 @@
-# Enterprise Smoke Test Findings (v3)
+# Enterprise Smoke Test Findings (v4)
 
 **Generated**: 2026-04-17
 **Branch**: `claude/refactor-original-implementation-y1irE`
-**Script**: `smoke-test-enterprise.sh` (v3, 35 sections, 229+ checks)
+**Script**: `smoke-test-enterprise.sh` (v4, 39 sections, 249 checks)
 
 ---
 
 ## Summary
 
-| Metric | Run 1 (baseline) | Run 17 (current) |
-|--------|-----------------|-----------------|
-| PASS   | 182             | 226             |
-| FAIL   | 3               | 0               |
-| WARN   | 9               | 3               |
-| Total  | 194             | 229             |
+| Metric | Run 1 (baseline) | Run 17 | Run 29 (current) |
+|--------|-----------------|--------|-----------------|
+| PASS   | 182             | 226    | 246             |
+| FAIL   | 3               | 0      | 0               |
+| WARN   | 9               | 3      | 3               |
+| Total  | 194             | 229    | 249             |
 
 **RESULT: PASSED** (3 advisory warnings, all about tracked files that are optional for production upload)
 
@@ -94,7 +94,62 @@ Section 8 only checked file existence, not importability. New check imports `ren
 
 `_xml_escape_data` is the sole guard between user content and Word XML. Tests cover: ampersand, less-than, greater-than, combined, safe passthrough, numeric passthrough, `None` passthrough, dict recursion, list recursion. **9 new PASSes.**
 
-### Run 17 — Update SMOKE-TEST-FINDINGS.md (this document)
+### Run 17 — SMOKE-TEST-FINDINGS.md v3 snapshot
+
+Updated findings document to capture runs 1-16, architecture summary, coverage matrix.
+
+### Run 18 — Add sections 36 and 37: cover-fixup and scaffolding-removal integration tests
+
+- **Section 36**: Tests `_post_render_cover_fixup` on a Standard template copy — verifies `NAME` and `xxx-xxx-xxx-xxx-xxx-#####` placeholders are replaced by the caller-supplied `document_name` and `doc_number`. **3 new PASSes.**
+- **Section 37**: Renders Standard and Guidance from sample inputs and verifies no scaffolding markers (`[CONTENT TITLE]`, `Enter text here`, `Click here to enter text`) survive in the output XML. **2 new PASSes.**
+
+### Run 19 — Fix `_remove_template_scaffolding` SDT bug
+
+**Root cause found via section 37**: The Guidance and Standard templates wrap the Table of Contents inside `<w:sdt>/<w:sdtContent>` (Word Structured Document Tag content controls). `doc.paragraphs` in python-docx only iterates direct `<w:body>` children — it does NOT traverse into SDT-wrapped paragraphs. The `[CONTENT TITLE]` anchor used by TOC entries survived in the output.
+
+**Fix**: Changed the Standard/Guidance scaffolding removal loop from `doc.paragraphs` to `doc.element.body.findall('.//' + qn('w:p'))` which uses XPath to find ALL `<w:p>` elements in the document body regardless of their parent container. **Section 37 FAIL → PASS.**
+
+### Run 20 — Fix guidance schema: move doc_number/document_name to post_render_markers
+
+`guidance_schema.json` had `document_name` and `doc_number` in `required_markers`, but these fields are NOT Jinja `{{ }}` markers in the Guidance template — they are plain-text placeholders patched by `_post_render_cover_fixup` after rendering. The linter's strict mode was returning exit=3 for these "missing" markers, causing `render()` to raise before docxtpl ran.
+
+Added `post_render_markers` array to both schema copies and updated the linter/schema documentation. **Guidance render RuntimeError fixed; section 37 Guidance PASS.**
+
+### Run 21 — Section 28: validate post_render_markers in sample input check
+
+Section 28 previously only validated `required_markers` (Jinja fields). Updated to also check `post_render_markers` (cover-fixup fields) against each doc type's sample input JSON. With the new `post_render_markers` list in guidance schema, section 28 now validates both field categories. **1 new PASS (guidance post-render fields).**
+
+### Run 22 — Add post_render_markers to standard_schema.json (both copies)
+
+Standard schema only had a private `_required_markers_note` comment explaining why `document_name`/`doc_number` are not Jinja markers. Added the canonical `post_render_markers` array (matching guidance schema's pattern) and replaced the comment with the standard `_post_render_markers_note` key. Section 28 now validates post-render fields for both Standard and Guidance. **1 new PASS.**
+
+### Run 23 — Section 36: extend cover-fixup test to Guidance template
+
+Section 36 previously only tested the Standard template fixup path. Guidance uses the identical `_post_render_cover_fixup` code path (`doc_type='guidance'`). Added a parallel Guidance test case verifying 4 placeholder patches (Standard has 3 because the cover title markup differs). **3 new PASSes.**
+
+### Run 24 — Section 31: add Guidance formatting fingerprint
+
+Section 31's render fingerprint cases only covered Procedure and Standard. Added Guidance to the list. Confirmed Guidance strict render output matches template: `Segoe UI` font, H1 color `002060`. **1 new PASS.**
+
+### Run 25 — Add section 38: render() raises ValueError on unknown doc_type
+
+New section verifies two invariants: (1) `render()` raises `ValueError` (not `KeyError` or `AttributeError`) for unrecognized `doc_type`, and (2) `DOC_TYPES` registry contains exactly `{procedure, standard, guidance}`. **2 new PASSes.**
+
+### Run 26 — Section 35: add list-of-dicts XML escape test
+
+`content_sections` (Standard) passes as a list of dicts with nested `bullets` lists. Added a test case using that exact shape to verify `_xml_escape_data` recurses correctly through list → dict → list nesting. **1 new PASS.**
+
+### Run 27 — Section 36: verify procedure cover-fixup is a no-op
+
+Procedures handle cover-page fields via Jinja markers — `_post_render_cover_fixup` must return an empty patches list for `doc_type='procedure'`. Added an explicit assertion that `patches == []` for procedure. **1 new PASS.**
+
+### Run 28 — Add section 39: render() report dict contract test; fix scope bug
+
+New section 39 verifies the `render()` return value contract: `doc_type`, `output`, `path`, `lint` keys all present; `path='docxtpl'` confirms strict renderer; `lint` sub-dict has `exit` and `issue_count`. Also fixes a scope bug in the same section where `out.exists()` ran after the `TemporaryDirectory` context manager cleaned up the dir, producing a spurious FAIL. **5 new PASSes.**
+
+### Run 29 — SMOKE-TEST-FINDINGS.md v4 snapshot + push
+
+Updated findings document to capture runs 17-29. Final state: **246 PASS, 0 FAIL, 3 WARN, 249 total checks.**
 
 ---
 
@@ -134,13 +189,22 @@ The smoke test (sections 21-23) confirms clean separation:
 
 ### 3. Template-Is-Sole-Source-of-Formatting Invariant (Confirmed)
 
-Section 31 render fingerprint test (with `docxtpl` installed) confirms:
+Section 31 render fingerprint test confirms all three doc types:
 - **Procedure**: strict render output font/H1 matches template (`Segoe UI`, H1=`2F5496`)
 - **Standard**: strict render output font/H1 matches template (`Aptos Display`, H1=`0F4761`)
+- **Guidance**: strict render output font/H1 matches template (`Segoe UI`, H1=`002060`)
 
 ### 4. Two-Copy Architecture
 
 `skills/docx/scripts/` and `NextDecade-Claude-Project/04-scripts/` are kept in sync. Section 30 confirms functional code is identical (only the `TEMPLATES` path constant differs, by design).
+
+### 5. Post-Render Marker Separation
+
+Standard and Guidance templates use two categories of input fields:
+- **`required_markers`**: Jinja `{{ }}` markers rendered by docxtpl (7-11 fields per doc type)
+- **`post_render_markers`**: Plain-text placeholders (`NAME`, `xxx-xxx-xxx-xxx-xxx-#####`) patched via `_post_render_cover_fixup` after rendering (always `[document_name, doc_number]`)
+
+Both schemas now document both categories explicitly. Procedure handles all cover fields via Jinja (no `post_render_markers`).
 
 ---
 
@@ -175,11 +239,15 @@ Section 31 render fingerprint test (with `docxtpl` installed) confirms:
 | **Strict-only design verification** | **25** | **PASS** |
 | Schema definitions shape + shared field types | 26 | PASS |
 | Cover-page placeholder fragility | 27 | PASS |
-| All 3 doc type input validation | 28 | PASS |
+| All 3 doc type input validation (Jinja + post-render) | 28 | PASS |
 | Fresh upload inventory (tracked only) | 29 | WARN (advisory) |
 | Script canonical copy sync | 30 | PASS |
-| **Template formatting invariant + strict API surface** | **31** | **PASS** |
+| **Template formatting invariant + strict API surface (all 3 types)** | **31** | **PASS** |
 | **StrictUndefined enforcement** | **32** | **PASS** |
 | **Lint failure raises** | **33** | **PASS** |
 | **API surface audit** | **34** | **PASS** |
-| **XML escape safety** | **35** | **PASS** |
+| **XML escape safety (strings, dicts, lists, list-of-dicts)** | **35** | **PASS** |
+| **Cover-fixup Standard + Guidance + procedure no-op** | **36** | **PASS** |
+| **Scaffolding removal (Standard + Guidance)** | **37** | **PASS** |
+| **Unknown doc_type raises ValueError** | **38** | **PASS** |
+| **render() report dict contract** | **39** | **PASS** |
