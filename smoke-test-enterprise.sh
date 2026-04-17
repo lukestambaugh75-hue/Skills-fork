@@ -842,10 +842,11 @@ for name, schema in [('procedure', proc), ('standard', std), ('guidance', gdn)]:
 done
 
 # =============================================================================
-section "25. Render pipeline dry-run — import check with dependencies"
+section "25. Render pipeline dry-run — import check + strict-only design verification"
 # =============================================================================
-# Try to import render_docx.py and verify the DOC_TYPES registry is populated.
-# This catches missing template files or broken import chains at parse time.
+# Import render_docx.py, verify DOC_TYPES is populated, templates/schemas
+# exist, and confirm the strict-only design: no fallback registry, no lenient
+# renderer, no fallback key in any DOC_TYPES entry.
 
 python3 -c "
 import sys, importlib.util, os
@@ -869,13 +870,26 @@ try:
                 print(f'OK:{dt} schema found: {schema.name}')
             else:
                 print(f'FAIL:{dt} schema missing: {schema}')
-            # Check fallback function exists
-            fb_name = cfg.get('fallback', '')
-            fb_fns = getattr(mod, 'FALLBACK_FNS', {})
-            if fb_name in fb_fns:
-                print(f'OK:{dt} fallback function registered: {fb_name}')
+            # Strict-only: no fallback key should exist in any DOC_TYPES entry
+            if 'fallback' in cfg:
+                print(f'FAIL:{dt} unexpected fallback key in DOC_TYPES cfg (strict-only design)')
             else:
-                print(f'FAIL:{dt} fallback function missing: {fb_name}')
+                print(f'OK:{dt} no fallback key in DOC_TYPES cfg (strict-only confirmed)')
+    # Verify FALLBACK_FNS registry was removed
+    if hasattr(mod, 'FALLBACK_FNS'):
+        print('FAIL:FALLBACK_FNS registry still present — should be absent in strict-only design')
+    else:
+        print('OK:FALLBACK_FNS registry absent (strict-only design confirmed)')
+    # Verify lenient renderer was removed
+    if hasattr(mod, 'render_via_docxtpl_lenient'):
+        print('FAIL:render_via_docxtpl_lenient still present — should be absent in strict-only design')
+    else:
+        print('OK:render_via_docxtpl_lenient absent (strict-only design confirmed)')
+    # Verify strict renderer exists
+    if hasattr(mod, 'render_via_docxtpl'):
+        print('OK:render_via_docxtpl present (strict renderer)')
+    else:
+        print('FAIL:render_via_docxtpl missing — primary render function not found')
 except Exception as e:
     print(f'FAIL:render_docx.py import failed: {e}')
 " 2>&1 | while IFS= read -r line; do
