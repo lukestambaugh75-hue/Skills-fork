@@ -1027,12 +1027,9 @@ echo "  skills-only upload (they are examples, dev artifacts, or build outputs):
 echo ""
 
 NOT_NEEDED=(
-    "Use this to share.zip:Flattened shareable bundle — use GitHub Releases instead"
     ".claude/plans:Development planning docs — not runtime"
     "samples/document-types-validation:Validation sample set — rebuild via _build/ scripts"
     "output/final:Generated example outputs — add to .gitignore"
-    "output/iter:Iteration outputs — already gitignored"
-    "skills/theme-factory/theme-showcase.pdf:Pre-rendered showcase — already gitignored"
     "SMOKE-TEST-FINDINGS.md:Previous smoke test findings — superseded by this script"
     "extracted-specs.md:Claude-readable brand distillation — useful for Claude Projects but not for skill upload"
     "gap-report.md:Gap analysis — useful for Claude Projects but not for skill upload"
@@ -1042,7 +1039,14 @@ NOT_NEEDED=(
 NN_FOUND=0
 for entry in "${NOT_NEEDED[@]}"; do
     IFS=':' read -r item reason <<< "$entry"
-    if [ -e "$item" ]; then
+    # Only count items that are tracked by git (gitignored/untracked items are already handled)
+    is_tracked=0
+    if [ -d "$item" ] && [ -n "$(git ls-files "$item" 2>/dev/null)" ]; then
+        is_tracked=1
+    elif [ -f "$item" ] && git ls-files --error-unmatch "$item" > /dev/null 2>&1; then
+        is_tracked=1
+    fi
+    if [ "$is_tracked" -eq 1 ]; then
         if [ -d "$item" ]; then
             item_size=$(du -sm "$item" 2>/dev/null | cut -f1)
             echo "    [${item_size:-?}MB dir] $item/"
@@ -1057,9 +1061,9 @@ for entry in "${NOT_NEEDED[@]}"; do
 done
 echo ""
 if [ "$NN_FOUND" -gt 0 ]; then
-    warn "$NN_FOUND items identified as removable for a clean skills-only upload"
+    warn "$NN_FOUND tracked items are removable for a clean skills-only upload"
 else
-    pass "No removable items found — repo is already lean"
+    pass "No tracked removable items — repo is lean for fresh upload"
 fi
 
 # =============================================================================
