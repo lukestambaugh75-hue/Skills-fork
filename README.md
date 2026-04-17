@@ -8,6 +8,12 @@ This repository is a fork of Anthropic's public [`anthropics/skills`](https://gi
 
 For the full tour (what each item is, guardrails, rollout checklist), read [`ENTERPRISE_OVERVIEW.md`](./ENTERPRISE_OVERVIEW.md).
 
+## Share with a Claude Project
+
+The [`ClaudeProjectBundle/`](./ClaudeProjectBundle/) folder holds the 14 files a teammate needs to upload to a Claude Project on claude.ai so the Project can write in this repo's voice and produce correctly-structured document inputs. It is the consolidated, Projects-sized distribution — it does not include the Python renderers or binary brand templates, which Projects cannot execute anyway.
+
+To produce a zip: `./build-claude-project-bundle.sh` (output `Claude Project knowledge bundle.zip` is gitignored).
+
 ## Upstream relationship
 
 We pull from Anthropic upstream. Do **not** rewrite the bodies of upstream skills in place — that makes future merges painful. Instead:
