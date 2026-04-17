@@ -1,0 +1,42 @@
+CLAUDE PROJECT KNOWLEDGE BUNDLE
+===============================
+
+This is the small bundle for uploading to a Claude Project on claude.ai.
+It contains everything Claude needs to WRITE in NextDecade's voice and
+produce correctly-structured document inputs. It does NOT contain the
+Python renderers or binary brand templates -- Claude Projects cannot run
+scripts, and the renderers are used OUTSIDE the chat (on your machine).
+
+FILES IN THIS BUNDLE
+--------------------
+  Enterprise Overview.docx                  -- the full write-up
+  README.docx                               -- repo README
+  Skills and Documentation - Standards and Procedures.docx
+  SKILL.md Template.docx                    -- reference (also below as .md)
+
+  All Skills Reference.md                   -- all 17 SKILL.md files in one doc
+  NextDecade Project Instructions.md        -- START-HERE + CLAUDE-INSTRUCTIONS + SELFTEST
+  NEXTDECADE-TEMPLATE.md                    -- the authoring schema for inputs
+  SKILL.md Authoring Template.md            -- template for writing new skills
+
+  guidance-template.json                    -- working input example
+  procedure-template.json                   -- working input example
+  standard-template.json                    -- working input example
+  pptx-template.json                        -- working input example
+  test-inputs-README.md                     -- notes on the examples above
+
+HOW TO USE
+----------
+1. Create a Claude Project on claude.ai.
+2. Upload every file in this folder as project knowledge.
+3. In the Project's system prompt paste (or refer to) the contents of
+   "NextDecade Project Instructions.md" so Claude knows which skills to
+   use and in what order.
+4. To RENDER a final .docx or .pptx, use the full slim zip on your
+   machine (it has the Python scripts and brand templates).
+
+WHY THE SPLIT
+-------------
+- Claude Projects = voice, writing, structured input generation (CHAT).
+- Full slim zip on your machine = running the renderers (SCRIPTS).
+Both draw from the same source material, so outputs stay brand-consistent.
