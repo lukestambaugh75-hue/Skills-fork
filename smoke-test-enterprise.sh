@@ -271,6 +271,29 @@ for schema_name in procedure_schema.json standard_schema.json guidance_schema.js
     fi
 done
 
+# Verify schema source_template fields reference existing files in 03-original-templates/
+python3 -c "
+import json, os
+orig = 'NextDecade-Claude-Project/03-original-templates'
+for name in ('procedure', 'standard', 'guidance'):
+    schema = json.load(open(f'skills/docx/templates/{name}_schema.json'))
+    src = schema.get('source_template', '')
+    if not src:
+        print(f'WARN:{name}_schema.json has no source_template field')
+        continue
+    path = os.path.join(orig, src)
+    if os.path.exists(path):
+        print(f'OK:{name} source_template exists: {src}')
+    else:
+        print(f'WARN:{name} source_template not found: {src} (check 03-original-templates/)')
+" 2>&1 | while IFS= read -r line; do
+    case "$line" in
+        OK:*)   pass "${line#OK:}" ;;
+        WARN:*) warn "${line#WARN:}" ;;
+        FAIL:*) fail "${line#FAIL:}" ;;
+    esac
+done
+
 # =============================================================================
 section "7. NextDecade-Claude-Project bundle — critical files present"
 # =============================================================================
