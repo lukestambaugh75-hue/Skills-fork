@@ -4,8 +4,6 @@
   "source_template": "Guidance Template.docx",
   "description": "Input schema for NextDecade Guidance documents. Guidance is advisory (best-practice recommendations). Shorter than Standards or Procedures — no Definitions, References, Exception Request, or Continuous Improvement sections. Section order: PURPOSE, INTEGRATED GOVERNANCE FRAMEWORK, GUIDELINE (intro + bullets), OWNERSHIP, APPROVAL, REVISION HISTORY. Pass a dict matching this shape to render_docx.render('guidance', data, output).",
   "required_markers": [
-    "document_name",
-    "doc_number",
     "purpose_text",
     "governance_text",
     "guideline_intro",

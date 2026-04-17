@@ -1,0 +1,42 @@
+{
+  "document_name": "TODO — e.g. Management of Change Standard",
+  "doc_number": "ORG-NTD-000010-OPS-STD-00000",
+  "introduction_text": "TODO — one paragraph introducing the standard, its purpose, and regulatory or business drivers.",
+  "scope_text": "This Standard applies to NextDecade Corporation, its subsidiary Rio Grande LNG (RGLNG), and any other affiliated entity. It applies to every member of the Workforce.",
+  "governance_text": "This Standard is part of NextDecade's integrated Governance Framework. It is implemented through supporting Procedures and Guidance documents.",
+  "exception_text": "Exceptions to this Standard require prior written approval from the accountable VP. Requests shall be submitted to HSSE with a documented risk assessment and compensating controls.",
+  "continuous_text": "This Standard shall be reviewed at least every three years or following any significant incident, regulatory change, or organizational restructuring.",
+  "content_sections": [
+    {
+      "title": "TODO Section Title",
+      "intro": "TODO — introductory sentence for this section.",
+      "bullets": [
+        "TODO requirement 1.",
+        "TODO requirement 2."
+      ]
+    }
+  ],
+  "definitions": [
+    {"no": "1", "term": "TODO Term", "definition": "TODO definition."}
+  ],
+  "references": [
+    {"number": "ORG-NTD-000010-HSE-STD-00001", "title": "NextDecade HSSE Standard"}
+  ],
+  "raci": {
+    "responsible": "TODO — role responsible for execution",
+    "accountable": "TODO — role accountable for outcomes",
+    "consulted": "TODO — role consulted during development",
+    "informed": "TODO — role informed of decisions"
+  },
+  "approval": {
+    "issuer": "TODO — e.g. VP Operations",
+    "adopted_by": "NextDecade Corporation",
+    "effective_date": "April 17, 2026"
+  },
+  "revision_history": [
+    {
+      "rev": "0",
+      "description": "Initial issue."
+    }
+  ]
+}
