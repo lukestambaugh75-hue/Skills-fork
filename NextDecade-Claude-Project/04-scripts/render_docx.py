@@ -190,6 +190,88 @@ def _remove_template_scaffolding(output: Path, doc_type: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Image injection — post-render step
+# ---------------------------------------------------------------------------
+def _inject_images(output: Path, images: list[dict]) -> list[str]:
+    """Insert images into the rendered .docx after their matching section headings.
+
+    Each entry in `images` is:
+      {"path": "/abs/or/rel/path/to/img.png",
+       "after_section": "SCOPE",   # normalized heading text to insert after
+       "width_cm": 14,             # optional float, default 14 cm
+       "caption": ""}              # optional caption text appended as a paragraph
+
+    Returns a list of injection log entries.
+    """
+    if not images:
+        return []
+
+    from docx import Document
+    from docx.shared import Cm
+    from docx.oxml.ns import qn as _qn
+    import re
+
+    doc = Document(str(output))
+    log: list[str] = []
+
+    def _norm(text: str) -> str:
+        return re.sub(r"^\d+(\.\d+)*\s+", "", text.strip()).upper()
+
+    # Build a list of (paragraph_index_in_doc, normalized_heading_text) for all headings
+    all_paras = doc.paragraphs
+    heading_positions: list[tuple[int, str]] = []
+    for idx, p in enumerate(all_paras):
+        if p.style and "Heading" in (p.style.name or ""):
+            heading_positions.append((idx, _norm(p.text)))
+
+    for img_spec in images:
+        img_path = Path(img_spec.get("path", ""))
+        if not img_path.exists():
+            log.append(f"SKIP image not found: {img_path}")
+            continue
+
+        after_section = _norm(img_spec.get("after_section", ""))
+        width_cm = float(img_spec.get("width_cm", 14))
+        caption = img_spec.get("caption", "")
+
+        # Find the best matching heading paragraph
+        target_idx = None
+        if after_section:
+            for hidx, hnorm in heading_positions:
+                if after_section in hnorm or hnorm in after_section:
+                    target_idx = hidx
+                    break
+
+        if target_idx is None:
+            # Append at end of document if no heading match
+            p_new = doc.add_paragraph()
+        else:
+            # Insert after the matched heading's paragraph element
+            heading_el = all_paras[target_idx]._element
+            p_new_el = doc.add_paragraph()._element
+            heading_el.addnext(p_new_el)
+            p_new = doc.paragraphs[all_paras.index(all_paras[target_idx]) + 1] \
+                if False else None
+            # Use the raw element approach since index shifts
+            from docx.text.paragraph import Paragraph
+            p_new = Paragraph(p_new_el, doc.element.body)
+
+        run = p_new.add_run()
+        run.add_picture(str(img_path), width=Cm(width_cm))
+        log.append(f"INSERTED {img_path.name} after '{after_section or 'end'}'")
+
+        if caption:
+            cap_p = doc.add_paragraph(caption, style="Caption") \
+                if "Caption" in [s.name for s in doc.styles] \
+                else doc.add_paragraph(caption)
+            if target_idx is not None:
+                p_new._element.addnext(cap_p._element)
+
+    doc.save(str(output))
+    return log
+
+
+# ---------------------------------------------------------------------------
 # PDF export via LibreOffice
 # ---------------------------------------------------------------------------
 def convert_to_pdf(docx_path: Path, pdf_path: Path | None = None) -> Path:
@@ -257,8 +339,10 @@ def render(doc_type: str, data: dict, output: str | Path, pdf: bool = False) -> 
             f"Issues: {lint_report.get('issues')}"
         )
 
-    # Step 2: render strict
-    render_via_docxtpl(data, cfg["jinja_template"], output)
+    # Step 2: render strict — strip 'images' before passing to docxtpl so
+    # StrictUndefined does not raise if a template ever references {{ images }}
+    docxtpl_data = {k: v for k, v in data.items() if k != "images"}
+    render_via_docxtpl(docxtpl_data, cfg["jinja_template"], output)
     report["path"] = "docxtpl"
     if lint_exit == 2:
         report["warnings"] = [w["message"] for w in lint_report.get("warnings", [])]
@@ -270,6 +354,13 @@ def render(doc_type: str, data: dict, output: str | Path, pdf: bool = False) -> 
 
     # Step 2.5b: remove template scaffolding (applies to all doc types)
     _remove_template_scaffolding(output, doc_type)
+
+    # Step 2.5c: inject images extracted from a source document (optional)
+    images = data.get("images")
+    if images:
+        image_log = _inject_images(output, images)
+        if image_log:
+            report["images_injected"] = image_log
 
     # Step 3: optional PDF
     if pdf:
