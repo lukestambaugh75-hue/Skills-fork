@@ -1448,6 +1448,21 @@ if r == ['A &amp; B', 'C &lt; D', 42]:
     print('OK:escape list recursive: list items escaped correctly')
 else:
     print(f'FAIL:escape list recursive: {r}')
+
+# List-of-dicts (content_sections shape used by Standard)
+content_sections = [
+    {'title': 'A & B Policy', 'intro': 'Values < 10', 'bullets': ['Item 1 & 2', 'Item > 3']},
+    {'title': 'Safe Title', 'intro': 'No special chars', 'bullets': ['Bullet only']},
+]
+r2 = fn(content_sections)
+expected_cs = [
+    {'title': 'A &amp; B Policy', 'intro': 'Values &lt; 10', 'bullets': ['Item 1 &amp; 2', 'Item &gt; 3']},
+    {'title': 'Safe Title', 'intro': 'No special chars', 'bullets': ['Bullet only']},
+]
+if r2 == expected_cs:
+    print('OK:escape list-of-dicts (content_sections): all nested strings escaped correctly')
+else:
+    print(f'FAIL:escape list-of-dicts: expected {expected_cs!r}, got {r2!r}')
 " 2>&1 | while IFS= read -r line; do
     case "$line" in
         OK:*)   pass "${line#OK:}" ;;
