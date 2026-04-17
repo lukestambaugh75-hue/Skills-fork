@@ -1084,18 +1084,16 @@ for pair in "${SCRIPT_PAIRS[@]}"; do
 done
 
 # =============================================================================
-section "31. Template-is-sole-source-of-formatting invariant (procedure + standard)"
+section "31. Template-is-sole-source-of-formatting invariant + strict-only API surface"
 # =============================================================================
 # NextDecade policy: the DOCX template is the authoritative source of
-# typography, colors, margins, headers, footers. Both render paths (docxtpl
-# strict AND walk_replace lenient) must produce output whose theme1.xml and
-# Heading 1 color match the template exactly. Any drift means a renderer is
-# introducing formatting that the template doesn't specify -- a policy
-# violation.
+# typography, colors, margins, headers, footers. The strict docxtpl render
+# must produce output whose theme1.xml and Heading 1 color match the template
+# exactly. Any drift means a renderer is introducing formatting that the
+# template doesn't specify -- a policy violation.
 #
-# This test renders each sample through both paths and compares the output's
-# theme-font and Heading 1 color against the source Jinja template.
-# Guidance is intentionally out of scope (separate decision per user).
+# This test also verifies the strict-only API surface: walk_replace_* functions
+# must NOT exist on the module (removed in the strict-only refactor).
 
 python3 - <<'PY' > /tmp/step31_out.txt 2>&1 || true
 import sys, json, re, zipfile, tempfile
@@ -1111,6 +1109,19 @@ def fingerprint(docx_path):
     h1 = re.search(r'<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:color[^/]*w:val="([0-9A-Fa-f]+)"', styles, re.DOTALL)
     return (maj.group(1) if maj else None, h1.group(1).upper() if h1 else None)
 
+# Verify walk_replace_* functions have been removed (strict-only design)
+for fn_name in ("walk_replace_procedure", "walk_replace_standard", "walk_replace_guidance"):
+    if hasattr(render_docx, fn_name):
+        print(f"FAIL {fn_name} still present — must be removed in strict-only design")
+    else:
+        print(f"PASS {fn_name} absent (strict-only API surface confirmed)")
+
+try:
+    import docxtpl  # noqa: F401
+except ImportError:
+    print("WARN formatting-invariant render skipped: docxtpl not installed (pip install docxtpl)")
+    sys.exit(0)
+
 cases = [
     ("procedure", "skills/docx/templates/Procedure Template (Jinja).docx",
      "samples/document-types-validation/_inputs/vendor-onboarding-procedure.json"),
@@ -1119,26 +1130,26 @@ cases = [
 ]
 with tempfile.TemporaryDirectory() as td:
     for dt, tpl, inp in cases:
+        if not Path(inp).exists():
+            print(f"WARN {dt}-strict: sample input not found ({inp}) — skipping render")
+            continue
         tpl_fp = fingerprint(tpl)
         with open(inp) as f: data = json.load(f)
-        out_happy = Path(td) / f"{dt}_happy.docx"
-        render_docx.render(dt, data, out_happy)
-        fp_happy = fingerprint(out_happy)
-        out_fb = Path(td) / f"{dt}_fallback.docx"
-        fn = render_docx.walk_replace_procedure if dt == "procedure" else render_docx.walk_replace_standard
-        fn(data, out_fb)
-        fp_fb = fingerprint(out_fb)
-        for label, fp in (("happy", fp_happy), ("fallback", fp_fb)):
-            if fp == tpl_fp:
-                print(f"PASS {dt}-{label}: output formatting matches template ({tpl_fp[0]}, H1={tpl_fp[1]})")
-            else:
-                print(f"FAIL {dt}-{label}: template={tpl_fp} output={fp}")
+        out_strict = Path(td) / f"{dt}_strict.docx"
+        render_docx.render(dt, data, out_strict)
+        fp_strict = fingerprint(out_strict)
+        if fp_strict == tpl_fp:
+            print(f"PASS {dt}-strict: output formatting matches template ({tpl_fp[0]}, H1={tpl_fp[1]})")
+        else:
+            print(f"FAIL {dt}-strict: template={tpl_fp} output={fp_strict}")
 PY
 while IFS= read -r line; do
     if [[ "$line" == PASS\ * ]]; then
         pass "${line#PASS }"
     elif [[ "$line" == FAIL\ * ]]; then
         fail "${line#FAIL }"
+    elif [[ "$line" == WARN\ * ]]; then
+        warn "${line#WARN }"
     fi
 done < /tmp/step31_out.txt
 
